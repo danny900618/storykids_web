@@ -1,7 +1,24 @@
+// Cloudflare Rate Limiting binding（wrangler.jsonc 的 ratelimits）
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 // Worker 環境設定（wrangler.jsonc 的 vars 與 secrets）
 export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+
+  // 次數限制：報名（每個 IP）、後台登入失敗（每個 IP）
+  REGISTER_LIMITER?: RateLimiter;
+  LOGIN_LIMITER?: RateLimiter;
+
+  // Cloudflare Turnstile（防機器人）：site key 公開給前端；secret 用 `wrangler secret put TURNSTILE_SECRET_KEY`
+  // 沒設定 secret 時略過驗證（仍有次數限制）
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
+
+  // 正式網域（逗號分隔）。正式網域上若金流仍為測試模式，會拒絕報名，避免家長拿到假的繳費帳號
+  PRODUCTION_HOSTS?: string;
 
   // 'mock'：測試模式，只寫通知紀錄、不真的寄出；'live'：正式寄送（尚未串接）
   MAIL_MODE: string;
@@ -10,7 +27,9 @@ export interface Env {
   PAYMENT_MODE: string;
 
   MAIL_FROM: string; // 寄件人，例如「故事講堂 <service@storykids.com.tw>」
+  MAIL_REPLY_TO?: string; // 家長回信的地址（選填，未設定則回到寄件人）
   COMPANY_EMAIL: string; // 有人報名時通知的公司信箱
+  BREVO_API_KEY?: string; // Brevo 寄信 API 金鑰：`wrangler secret put BREVO_API_KEY`
 
   // 後台登入（擇一）：
   // 1. Cloudflare Access（正式建議）：設定 ACCESS_TEAM_DOMAIN 與 ACCESS_AUD
@@ -60,9 +79,16 @@ export interface Registration {
   va_expires_at: string | null;
   paid_amount: number | null;
   paid_at: string | null;
+  review_note: string | null;
   created_at: string;
   updated_at: string;
 }
+
+// 用戶端 IP（Cloudflare 提供），用於次數限制
+export const clientIp = (request: Request) => request.headers.get('CF-Connecting-IP') ?? 'unknown';
+
+// 是否為本機開發網址
+export const isLocalRequest = (request: Request) => ['localhost', '127.0.0.1'].includes(new URL(request.url).hostname);
 
 // 狀態（沿用舊系統）
 export const STATUSES = ['待處理', '等待付費', '已付訂金', '已付費', '合庫轉帳', '現金繳清', '轉至其他梯次', '取消報名'] as const;

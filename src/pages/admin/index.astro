@@ -19,6 +19,7 @@ import '../../styles/global.css';
         <span id="mode-badge" class="hidden rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800"></span>
         <div class="ml-auto flex flex-wrap items-center gap-3 text-sm">
           <span id="actor" class="text-ink-500"></span>
+          <button type="button" id="test-email" class="rounded-lg border border-black/15 px-3 py-1 hover:bg-slate-100">寄測試信</button>
           <a href="/cms" target="_blank" class="text-brand-700 hover:underline">內容管理（課程與時段設定）</a>
           <a href="/" target="_blank" class="text-brand-700 hover:underline">網站首頁</a>
         </div>
@@ -45,7 +46,7 @@ import '../../styles/global.css';
             </select>
           </label>
           <label class="text-sm">狀態
-            <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>逾期未繳</option></select>
+            <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>需人工確認</option><option>逾期未繳</option></select>
           </label>
           <label class="text-sm">搜尋
             <input name="q" placeholder="姓名、手機、Email、帳號、編號" class="mt-1 block w-64 rounded-lg border border-black/15 px-3 py-2" />
@@ -86,7 +87,7 @@ import '../../styles/global.css';
         id: number; session_code: string; course_title: string; session_name: string; student_name: string; parent_name: string;
         school: string | null; grade: string | null; phone: string; email: string; note: string | null; admission: string; status: string;
         amount: number; va_account: string | null; va_expires_at: string | null; paid_amount: number | null; paid_at: string | null;
-        created_at: string; expired: boolean;
+        review_note: string | null; created_at: string; expired: boolean;
       }
       interface SessionInfo { code: string; name: string; course_title: string; capacity: number; taken: number; waitlist: number; open: boolean; price: number }
 
@@ -139,7 +140,9 @@ import '../../styles/global.css';
           : '<div class="text-xs text-ink-500">候補不產生帳號</div>';
         const mockBtn = config.payment_mode === 'mock' && r.va_account && !paid
           ? `<button data-mock="${r.id}" class="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-700">模擬入帳</button>` : '';
-        return `<tr class="align-top ${r.status === '取消報名' ? 'opacity-50' : ''}">
+        const review = r.review_note
+          ? `<div class="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">⚠️ 需人工確認：${esc(r.review_note)}</div>` : '';
+        return `<tr class="align-top ${r.status === '取消報名' ? 'opacity-50' : ''} ${r.review_note ? 'bg-red-50/40' : ''}">
           <td class="px-3 py-3 font-bold">${r.id}</td>
           <td class="px-3 py-3 whitespace-nowrap">${tw(r.created_at)}</td>
           <td class="px-3 py-3"><div class="text-xs text-ink-500">${esc(r.course_title)}</div>${esc(r.session_name)}</td>
@@ -149,7 +152,7 @@ import '../../styles/global.css';
           <td class="px-3 py-3"><select data-admission="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
             <option ${r.admission === '正取' ? 'selected' : ''}>正取</option><option ${r.admission === '候補' ? 'selected' : ''}>候補</option></select></td>
           <td class="px-3 py-3"><select data-status="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${paid ? 'bg-green-50' : ''}">${statusOptions}</select>
-            ${paid && r.paid_at ? `<div class="mt-1 text-xs text-green-700">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}</td>
+            ${r.paid_at ? `<div class="mt-1 text-xs ${paid ? 'text-green-700' : 'text-red-700'}">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}${review}</td>
           <td class="px-3 py-3"><div class="font-bold">${money(r.amount)}</div>${vaInfo}</td>
           <td class="space-y-1 px-3 py-3"><div class="flex flex-wrap gap-1">${mockBtn}
             <button data-history="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 text-xs hover:bg-slate-100">紀錄</button></div></td>
@@ -193,7 +196,7 @@ import '../../styles/global.css';
           if (!confirm('模擬台新入帳通知（測試用）：這筆報名會被標記為已付費，並記錄收據通知。')) return;
           try {
             const out = await api<{ result: string }>(`/registrations/${el.dataset.mock}/mock-payment`, { method: 'POST', body: '{}' });
-            const labels: Record<string, string> = { paid: '對帳成功，已改為已付費', amount_mismatch: '金額不符', unmatched: '查無帳號', already_paid: '已付費過', duplicate_event: '重複的入帳通知' };
+            const labels: Record<string, string> = { paid: '對帳成功，已改為已付費', paid_late: '逾期後才入帳，已標記需人工確認', amount_mismatch: '金額不符，已標記需人工確認', unmatched: '查無帳號', already_paid: '已付費過（重複繳費），已標記需人工確認', not_payable: '報名非正取或已取消，已標記需人工確認', duplicate_event: '重複的入帳通知' };
             alert(labels[out.result] ?? out.result);
           } catch (err) {
             alert((err as Error).message);
@@ -229,6 +232,18 @@ import '../../styles/global.css';
         loadRows();
       });
       $('export').addEventListener('click', () => (location.href = `/api/admin/export.csv?${query()}`));
+
+      // 寄測試信：確認 Brevo 寄信串接（不論是否為測試模式，都會真的寄出這一封）
+      $('test-email').addEventListener('click', async () => {
+        const to = prompt('寄一封測試信到哪個 Email？（會真的寄出）');
+        if (!to) return;
+        try {
+          await api('/test-email', { method: 'POST', body: JSON.stringify({ to }) });
+          alert(`已寄出，請到 ${to} 收信（也看一下垃圾信件匣）`);
+        } catch (e) {
+          alert(`寄送失敗：${(e as Error).message}`);
+        }
+      });
 
       (async () => {
         try {

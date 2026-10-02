@@ -11,6 +11,12 @@
   </head>
   <body>
     <!-- Sveltia CMS：開源的 Git 內容後台（https://sveltiacms.app），修改會直接 commit 到 GitHub，網站自動重新部署 -->
-    <script src="https://unpkg.com/@sveltia/cms@0.227.2/dist/sveltia-cms.js"></script>
+    <!-- integrity：檔案完整性檢查，CDN 上的檔案若被竄改，瀏覽器會拒絕執行。
+         升級版本時要重新計算：curl -sL <網址> | openssl dgst -sha384 -binary | openssl base64 -A -->
+    <script
+      src="https://unpkg.com/@sveltia/cms@0.227.2/dist/sveltia-cms.js"
+      integrity="sha384-gCr3f3RuJYg6+sIiMAg2eO1+YeXswqgZAF7gmS1lggpTauAbv+2yFhIX8gol7JCy"
+      crossorigin="anonymous"
+    ></script>
   </body>
 </html>

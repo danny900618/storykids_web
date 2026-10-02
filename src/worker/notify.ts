@@ -14,6 +14,7 @@ interface Message {
 async function deliver(env: Env, registrationId: number, msg: Message): Promise<void> {
   const mode = msg.channel === 'email' ? env.MAIL_MODE : env.SMS_MODE;
   let result = 'mock';
+  let body = msg.body;
   if (mode === 'live') {
     try {
       if (msg.channel === 'email') await sendEmailLive(env, msg);
@@ -22,19 +23,54 @@ async function deliver(env: Env, registrationId: number, msg: Message): Promise<
     } catch (err) {
       console.error('通知寄送失敗', err);
       result = 'failed';
+      // 失敗原因附在紀錄最後，後台「紀錄」可以看到
+      body = `${msg.body}\n\n［寄送失敗］${err instanceof Error ? err.message : String(err)}`;
     }
   }
   await env.DB.prepare(
     `INSERT INTO notifications (registration_id, channel, recipient, subject, body, result, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(registrationId, msg.channel, msg.recipient, msg.subject ?? null, msg.body, result, nowIso())
+    .bind(registrationId, msg.channel, msg.recipient, msg.subject ?? null, body, result, nowIso())
     .run();
 }
 
-// TODO：拿到寄信服務帳號後實作（寄件人 env.MAIL_FROM）
-async function sendEmailLive(_env: Env, _msg: Message): Promise<void> {
-  throw new Error('Email 正式寄送尚未串接');
+// 「故事講堂 <service@storykids.com.tw>」→ { name, email }
+export function parseAddress(value: string): { name?: string; email: string } {
+  const m = value.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1] || undefined, email: m[2].trim() } : { email: value.trim() };
+}
+
+// Email 正式寄送：Brevo 交易信 API（https://developers.brevo.com/reference/sendtransacemail）
+// 寄件網域需先在 Brevo 驗證（DNS 加 DKIM／SPF），否則可能被拒絕或進垃圾信件匣
+export async function sendEmailLive(env: Env, msg: Message): Promise<void> {
+  if (!env.BREVO_API_KEY) throw new Error('尚未設定 BREVO_API_KEY');
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      sender: parseAddress(env.MAIL_FROM),
+      to: [{ email: msg.recipient }],
+      ...(env.MAIL_REPLY_TO ? { replyTo: parseAddress(env.MAIL_REPLY_TO) } : {}),
+      subject: msg.subject ?? '故事講堂通知',
+      textContent: msg.body,
+    }),
+  });
+  if (!res.ok) {
+    // 只記錄 Brevo 回傳的錯誤訊息，不包含金鑰
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Brevo 寄信失敗 ${res.status}：${detail.slice(0, 300)}`);
+  }
+}
+
+// 後台「寄測試信」：不論 MAIL_MODE，直接用 Brevo 寄一封信，用來確認串接與寄件網域設定
+export async function sendTestEmail(env: Env, to: string): Promise<void> {
+  await sendEmailLive(env, {
+    channel: 'email',
+    recipient: to,
+    subject: '【故事講堂】寄信測試',
+    body: ['這是故事講堂網站的寄信測試。', '', '收到這封信代表 Brevo 串接成功。', '請確認：這封信不在垃圾信件匣、寄件人顯示「故事講堂」。'].join('\n'),
+  });
 }
 
 // TODO：拿到三竹簡訊 API 帳號後實作
@@ -140,6 +176,23 @@ export async function notifyPromoted(env: Env, r: Registration): Promise<void> {
     channel: 'sms',
     recipient: r.phone,
     body: `【故事講堂】${r.student_name}已遞補「${course}」正取，請於${formatTw(r.va_expires_at)}前轉帳${money(r.amount)}至台新(812)${r.va_account}。`,
+  });
+}
+
+// 入帳需要人工確認（逾期入帳、金額不符、重複繳費、已取消仍入帳）：只通知公司信箱，不通知家長
+export async function notifyReviewNeeded(env: Env, r: Registration): Promise<void> {
+  await deliver(env, r.id, {
+    channel: 'email',
+    recipient: env.COMPANY_EMAIL,
+    subject: `【入帳需確認】${r.course_title}｜${r.session_name}｜${r.student_name}`,
+    body: [
+      `報名編號：${r.id}`,
+      `原因：${r.review_note ?? ''}`,
+      `學生／家長：${r.student_name}／${r.parent_name}（${r.phone}）`,
+      `應繳金額：${money(r.amount)}；累計實收：${money(r.paid_amount ?? 0)}`,
+      '',
+      '請到報名管理後台確認這筆報名的狀態，必要時聯繫家長或辦理退費。',
+    ].join('\n'),
   });
 }
 

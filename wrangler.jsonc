@@ -25,7 +25,19 @@
       "migrations_dir": "migrations"
     }
   ],
+  // 次數限制（防灌假報名、防暴力猜後台密碼）。period 只能是 10 或 60 秒；namespace_id 為帳號內唯一的自訂編號
+  "ratelimits": [
+    // 同一個 IP 每 60 秒最多送出 5 次報名
+    { "name": "REGISTER_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
+    // 同一個 IP 每 60 秒最多 10 次後台登入失敗
+    { "name": "LOGIN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }
+  ],
   "vars": {
+    // 正式網域：在這些網域上，若 PAYMENT_MODE 不是 live 就不開放報名（避免家長拿到假的繳費帳號）
+    "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw",
+    // Cloudflare Turnstile 防機器人的 site key（公開值）；secret 用 `wrangler secret put TURNSTILE_SECRET_KEY`
+    // 尚未在 Cloudflare 建立 Turnstile 時留空（會略過驗證，仍有次數限制）
+    "TURNSTILE_SITE_KEY": "",
     // 測試模式：mock = 不真的寄信／發簡訊、使用假虛擬帳號；正式串接後改為 live
     "MAIL_MODE": "mock",
     "SMS_MODE": "mock",

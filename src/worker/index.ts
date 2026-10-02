@@ -3,7 +3,7 @@
 import type { Env } from './env';
 import { json } from './env';
 import { authenticateAdmin, sameOrigin } from './auth';
-import { handleAvailability, handleRegister } from './register';
+import { handleAvailability, handleRegister, registrationBlockedReason } from './register';
 import { handleAdmin } from './admin';
 import { handleCmsAuth } from './cms-auth';
 
@@ -30,6 +30,10 @@ export default {
       }
 
       // ---- 前台 API ----
+      // 前端需要的公開設定：Turnstile site key、是否暫停報名
+      if (path === '/api/public-config' && request.method === 'GET') {
+        return json({ turnstile_site_key: env.TURNSTILE_SITE_KEY || null, registration_blocked: registrationBlockedReason(request, env) });
+      }
       if (path === '/api/availability' && request.method === 'GET') return await handleAvailability(request, env);
       if (path === '/api/register' && request.method === 'POST') {
         if (!sameOrigin(request)) return json({ error: '來源不符' }, 403);

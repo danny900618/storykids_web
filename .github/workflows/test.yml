@@ -1,0 +1,27 @@
+# 自動化測試：每次 push 或 PR 時執行後端測試（報名、金流對帳、登入），失敗會在 GitHub 顯示紅色叉叉
+name: 自動化測試
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'src/content/**'
+      - 'public/images/**'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 後端型別檢查
+        run: npm run check:worker
+      - name: 後端測試
+        run: npm test
+      - name: 網頁型別檢查與建置
+        run: npm run check && npm run build

@@ -14,6 +14,12 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
   <PageHeader title="線上報名" crumbs={[{ label: '課程介紹', href: '/courses' }]} />
 
   <div class="container-page max-w-3xl py-12">
+    <!-- 暫停線上報名（正式網域但金流尚未正式啟用等） -->
+    <div id="blocked" class="hidden rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
+      <p class="text-lg font-bold" id="blocked-text"></p>
+      <a href="/contact" class="btn-primary mt-6">聯絡資訊</a>
+    </div>
+
     <!-- 找不到時段 -->
     <div id="no-session" class="hidden rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
       <p class="text-lg font-bold">找不到這個上課時段</p>
@@ -78,6 +84,9 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
           </span>
         </label>
 
+        <!-- Cloudflare Turnstile 防機器人驗證（有設定 site key 才會顯示） -->
+        <div id="turnstile"></div>
+
         <p id="form-error" class="hidden rounded-xl bg-red-50 p-4 text-red-700" role="alert"></p>
         <button type="submit" class="btn-primary w-full py-3.5 text-lg disabled:opacity-60" id="submit-btn">送出報名</button>
       </form>
@@ -103,7 +112,37 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
 
   const code = new URLSearchParams(location.search).get('session') ?? '';
 
+  // Cloudflare Turnstile
+  type Turnstile = { render: (el: HTMLElement, opts: Record<string, unknown>) => string; reset: (id?: string) => void };
+  const turnstileApi = () => (window as unknown as { turnstile?: Turnstile }).turnstile;
+  let turnstileToken = '';
+  let turnstileWidget: string | undefined;
+  function loadTurnstile(siteKey: string) {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = () => {
+      turnstileWidget = turnstileApi()?.render($('turnstile'), {
+        sitekey: siteKey,
+        language: 'zh-tw',
+        callback: (token: string) => (turnstileToken = token),
+        'expired-callback': () => (turnstileToken = ''),
+      });
+    };
+    document.head.appendChild(script);
+  }
+
   async function init() {
+    const config = (await fetch('/api/public-config').then((r) => r.json()).catch(() => ({}))) as {
+      turnstile_site_key?: string | null; registration_blocked?: string | null;
+    };
+    if (config.registration_blocked) {
+      $('blocked-text').textContent = config.registration_blocked;
+      $('blocked').classList.remove('hidden');
+      return;
+    }
+    if (config.turnstile_site_key) loadTurnstile(config.turnstile_site_key);
+
     const sessions = (await fetch('/data/sessions.json').then((r) => r.json())) as Session[];
     const s = sessions.find((x) => x.code === code);
     if (!s || !s.open) {
@@ -172,7 +211,7 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, agree: data.agree === 'on', session_code: code }),
+        body: JSON.stringify({ ...data, agree: data.agree === 'on', session_code: code, turnstile_token: turnstileToken }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || '報名失敗，請稍後再試');
@@ -180,6 +219,11 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
     } catch (err) {
       errorBox.textContent = err instanceof Error ? err.message : '報名失敗，請稍後再試';
       errorBox.classList.remove('hidden');
+      // Turnstile token 只能用一次，失敗後重新驗證
+      if (turnstileWidget !== undefined) {
+        turnstileApi()?.reset(turnstileWidget);
+        turnstileToken = '';
+      }
       btn.disabled = false;
       btn.textContent = '送出報名';
     }

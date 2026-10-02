@@ -2,10 +2,8 @@
 import type { Env, Registration } from './env';
 import { STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
 import { countBySession, loadSessions } from './sessions';
-import { generateVirtualAccount, reconcile } from './payment';
-import { notifyPromoted } from './notify';
-
-const PAID_STATUSES = ['已付費', '合庫轉帳', '現金繳清'];
+import { PAID_STATUSES, generateVirtualAccount, reconcile } from './payment';
+import { notifyPromoted, sendTestEmail } from './notify';
 
 export async function handleAdmin(request: Request, env: Env, actor: string): Promise<Response> {
   const url = new URL(request.url);
@@ -19,10 +17,12 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
       mail_mode: env.MAIL_MODE,
       sms_mode: env.SMS_MODE,
       company_email: env.COMPANY_EMAIL,
+      mail_ready: !!env.BREVO_API_KEY,
       statuses: STATUSES,
     });
   }
 
+  if (method === 'POST' && path === '/test-email') return testEmail(request, env, actor);
   if (method === 'GET' && path === '/sessions') return listSessions(request, env);
   if (method === 'GET' && path === '/registrations') return json(await queryRegistrations(env, url.searchParams));
   if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams);
@@ -33,7 +33,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
     const action = m[2] ?? '';
     if (method === 'GET' && action === '/history') return history(env, id);
     if (method === 'PATCH' && action === '') return updateRegistration(request, env, id, actor);
-    if (method === 'POST' && action === '/mock-payment') return mockPayment(env, id, actor);
+    if (method === 'POST' && action === '/mock-payment') return mockPayment(request, env, id, actor);
   }
   return json({ error: '找不到' }, 404);
 }
@@ -60,6 +60,7 @@ async function queryRegistrations(env: Env, params: URLSearchParams): Promise<(R
   if (session) { where.push('session_code = ?'); binds.push(session); }
   if (admission) { where.push('admission = ?'); binds.push(admission); }
   if (status === '逾期未繳') { where.push(`status = '等待付費' AND va_expires_at < ?`); binds.push(nowIso()); }
+  else if (status === '需人工確認') { where.push('review_note IS NOT NULL'); }
   else if (status) { where.push('status = ?'); binds.push(status); }
   if (q) {
     where.push('(student_name LIKE ? OR parent_name LIKE ? OR phone LIKE ? OR email LIKE ? OR va_account LIKE ? OR CAST(id AS TEXT) = ?)');
@@ -116,7 +117,7 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
 
   await env.DB.batch([
     env.DB.prepare(
-      `UPDATE registrations SET admission = ?, status = ?, va_account = ?, va_expires_at = ?, paid_at = ?, paid_amount = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE registrations SET admission = ?, status = ?, va_account = ?, va_expires_at = ?, paid_at = ?, paid_amount = ?, review_note = NULL, updated_at = ? WHERE id = ?`,
     ).bind(next.admission, next.status, next.va_account, next.va_expires_at, next.paid_at, next.paid_amount, now, id),
     env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, ?, '修改', ?, ?)`).bind(
       id, actor, changes.join('；'), now,
@@ -124,18 +125,20 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
   ]);
 
   if (promoted) await notifyPromoted(env, next);
-  return json({ ...next, updated_at: now, expired: isExpired(next) });
+  return json({ ...next, review_note: null, updated_at: now, expired: isExpired(next) });
 }
 
 // 模擬入帳（只在測試模式可用）：走跟台新入帳通知完全相同的對帳流程
-async function mockPayment(env: Env, id: number, actor: string): Promise<Response> {
+async function mockPayment(request: Request, env: Env, id: number, actor: string): Promise<Response> {
   if (env.PAYMENT_MODE !== 'mock') return json({ error: '正式模式不能模擬入帳' }, 403);
+  // 可指定金額（測試金額不符）；未指定則用應繳金額
+  const body = (await request.json().catch(() => ({}))) as { amount?: unknown };
   const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
   if (!reg?.va_account) return json({ error: '這筆報名沒有繳費帳號（候補不會產生帳號）' }, 400);
   const out = await reconcile(env, {
     ref: `MOCK-${id}-${Date.now()}`,
     vaAccount: reg.va_account,
-    amount: reg.amount,
+    amount: Number.isInteger(body.amount) ? (body.amount as number) : reg.amount,
     raw: JSON.stringify({ mock: true, by: actor }),
   });
   return json(out);
@@ -154,7 +157,7 @@ async function history(env: Env, id: number): Promise<Response> {
 // 匯出 CSV（UTF-8 BOM，Excel 直接開啟不會亂碼）
 async function exportCsv(env: Env, params: URLSearchParams): Promise<Response> {
   const rows = await queryRegistrations(env, params);
-  const header = ['報名編號', '報名時間', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '家長姓名', '學校', '年級', '手機', 'Email', '備註', '應繳金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間'];
+  const header = ['報名編號', '報名時間', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '家長姓名', '學校', '年級', '手機', 'Email', '備註', '應繳金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '需人工確認'];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
     // 避免 Excel 公式注入：開頭為 = + - @ 的欄位前加單引號
@@ -166,7 +169,7 @@ async function exportCsv(env: Env, params: URLSearchParams): Promise<Response> {
       r.id, formatTw(r.created_at), r.course_title, r.session_name, r.session_code, r.admission,
       r.expired ? '等待付費（已逾期）' : r.status,
       r.student_name, r.parent_name, r.school, r.grade, `\t${r.phone}`, r.email, r.note, r.amount,
-      r.va_account ? `\t${r.va_account}` : '', formatTw(r.va_expires_at), r.paid_amount, formatTw(r.paid_at),
+      r.va_account ? `\t${r.va_account}` : '', formatTw(r.va_expires_at), r.paid_amount, formatTw(r.paid_at), r.review_note,
     ].map(esc).join(','),
   );
   const csv = `﻿${[header.join(','), ...lines].join('\r\n')}`;
@@ -178,4 +181,20 @@ async function exportCsv(env: Env, params: URLSearchParams): Promise<Response> {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+// 寄測試信（確認 Brevo 串接與寄件網域設定）
+async function testEmail(request: Request, env: Env, actor: string): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as { to?: unknown };
+  const to = typeof body.to === 'string' ? body.to.trim() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: '請填寫正確的 Email' }, 400);
+  try {
+    await sendTestEmail(env, to);
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : '寄送失敗' }, 502);
+  }
+  await env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (NULL, ?, '寄測試信', ?, ?)`)
+    .bind(actor, to, nowIso())
+    .run();
+  return json({ ok: true });
 }

@@ -1,8 +1,16 @@
 // 後台登入驗證（/admin 與 /api/admin/*）
 // 優先順序：Cloudflare Access → 暫時密碼（HTTP Basic）→ 本機開發略過；都沒設定則拒絕（fail closed）
 import type { Env } from './env';
+import { clientIp, isLocalRequest } from './env';
 
 export type AuthResult = { ok: true; actor: string } | { ok: false; response: Response };
+
+// 登入失敗次數限制：同一個 IP 失敗太多次就暫時擋下，防止暴力猜密碼
+async function tooManyFailures(request: Request, env: Env): Promise<Response | null> {
+  if (!env.LOGIN_LIMITER) return null;
+  const { success } = await env.LOGIN_LIMITER.limit({ key: `login:${clientIp(request)}` });
+  return success ? null : new Response('登入失敗次數過多，請稍後再試', { status: 429, headers: { 'Retry-After': '60' } });
+}
 
 export async function authenticateAdmin(request: Request, env: Env): Promise<AuthResult> {
   // 1. Cloudflare Access：驗證 Access 簽發的 JWT
@@ -10,16 +18,24 @@ export async function authenticateAdmin(request: Request, env: Env): Promise<Aut
     const token = request.headers.get('Cf-Access-Jwt-Assertion');
     const email = token ? await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD) : null;
     if (email) return { ok: true, actor: email };
-    return { ok: false, response: new Response('需要透過 Cloudflare Access 登入', { status: 403 }) };
+    return { ok: false, response: (await tooManyFailures(request, env)) ?? new Response('需要透過 Cloudflare Access 登入', { status: 403 }) };
   }
 
   // 2. 暫時密碼（HTTP Basic，帳號任意）
   if (env.ADMIN_PASSWORD) {
     const header = request.headers.get('Authorization') ?? '';
     if (header.startsWith('Basic ')) {
-      const decoded = atob(header.slice(6));
+      let decoded = '';
+      try {
+        decoded = new TextDecoder().decode(Uint8Array.from(atob(header.slice(6)), (c) => c.charCodeAt(0)));
+      } catch {
+        // 格式錯誤的 Authorization 視為密碼錯誤
+      }
       const [user, ...rest] = decoded.split(':');
       if (await timingSafeEqual(rest.join(':'), env.ADMIN_PASSWORD)) return { ok: true, actor: `password:${user || 'admin'}` };
+      // 有送出密碼但錯誤 → 計入失敗次數
+      const blocked = await tooManyFailures(request, env);
+      if (blocked) return { ok: false, response: blocked };
     }
     return {
       ok: false,
@@ -27,8 +43,8 @@ export async function authenticateAdmin(request: Request, env: Env): Promise<Aut
     };
   }
 
-  // 3. 本機開發（只會在 .dev.vars 設定，正式環境不要設）
-  if (env.ADMIN_DEV_BYPASS === 'true') return { ok: true, actor: 'dev' };
+  // 3. 本機開發：只在 localhost／127.0.0.1 生效，就算誤設到正式環境也不會開放
+  if (env.ADMIN_DEV_BYPASS === 'true' && isLocalRequest(request)) return { ok: true, actor: 'dev' };
 
   return { ok: false, response: new Response('後台尚未設定登入方式，已停用', { status: 403 }) };
 }

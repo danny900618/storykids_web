@@ -25,6 +25,22 @@ context:
   domain:
     name: storykids.com.tw
     registrar: 遠振資訊
+    # 2026-10-02 dig 查詢結果
+    nameservers: [ns1.mor-e.tw, ns2.mor-e.tw]   # ⚠️ DNS 由舊外包（Mor-e）管理，不是遠振
+    mx: storykids.com.tw（223.27.34.209，即舊網站主機）   # ⚠️ @storykids.com.tw 信箱架在舊外包主機上
+    spf: "v=spf1 +a +mx +ip4:223.27.34.209 ~all"
+    dmarc: 無
+    note: 切換 Nameserver 到 Cloudflare 時，舊主機關閉後 @storykids.com.tw 信箱會失效；需先改用 Cloudflare Email Routing（轉寄到 Gmail）等方案
+    old_host: cPanel 共享主機 223.27.34.209；DNSSEC 未啟用；TTL 13200 秒
+    records_to_copy:   # DNS 先轉 Cloudflare、舊站照舊時必須全部照抄（DNS only）
+      - "A: @, www, mail, webmail, ftp, cpanel, whm, webdisk, autoconfig, autodiscover, cpcalendars, cpcontacts → 223.27.34.209（部分為 CNAME 到 @）"
+      - "MX: @ → storykids.com.tw（優先 0）"
+      - "TXT: @ SPF（加 include:spf.brevo.com）、default._domainkey DKIM、_acme-challenge、_cpanel-dcv-test-record"
+      - "SRV: _autodiscover._tcp → 0 0 443 cpanelemaildiscovery.cpanel.net"
+    ssl_risk: >
+      舊站憑證 Let's Encrypt（cPanel AutoSSL），有效至 2026-12-17；DNS 上有 _acme-challenge，續約可能依賴外包 DNS，
+      轉到 Cloudflare 後可能續約失敗 → 對策：12/17 前新站上線，或將 @、www 改為 Cloudflare 代理
+    rollback: 遠振把 Nameserver 改回 ns1.mor-e.tw、ns2.mor-e.tw
   contact:
     address: 台中市向上路698號（文心公園旁）
   payment_methods_on_old_site:   # 來源：https://storykids.com.tw/notice_price.php
@@ -76,6 +92,27 @@ context:
     - SurveyCake 沒有任何金流/收款功能，無法串台新、藍新、綠界。其 HashKey/IV 是 Webhook 填答資料解密用（AES-128-CBC），與金流無關。
     - 報名需求比「報名+付款」複雜：梯次、名額上限、正取/候補、訂金、定時開放搶名額、手動簡訊。一般金流「收款連結」做不到候補/梯次/訂金。
     - 116 冬令營預計 2026-11-05 14:30 開放報名 → 切換系統不可落在報名期間。
+
+# -----------------------------------------------------------------------------
+# 服務、額度與費用（2026-10-02 查證；詳見 README「費用、額度與綁卡」）
+# -----------------------------------------------------------------------------
+billing:
+  credit_card_required_now: false
+  auto_charges_now: [網域續約（遠振，視自動續約設定）]
+  services:
+    - { name: Cloudflare Workers, plan: Free, card: false, limit: "靜態不限量；/api、/admin 每天 10 萬次", over_limit: 當天 API 失敗（台灣 08:00 重置），不收費 }
+    - { name: Cloudflare D1, plan: Free, card: false, limit: "每天讀 500 萬列／寫 10 萬列，5 GB", over_limit: 當天查詢失敗，不收費 }
+    - { name: Workers Builds, plan: Free, card: false, limit: 每月 3,000 分鐘, over_limit: 當月無法部署 }
+    - { name: Cloudflare Access, plan: Zero Trust Free, card: 可能需要（不收費）, limit: 50 人, note: 正式上線後才設定 }
+    - { name: GitHub, plan: Free, card: false, limit: "Actions 每月 2,000 分鐘", over_limit: Actions 停止，預設不扣款 }
+    - { name: Sveltia CMS, plan: 開源, card: false, note: 由 unpkg CDN 載入（鎖定版本） }
+    - { name: 網域 storykids.com.tw, plan: 遠振年費, card: 視設定, note: 忘記續約網站會停 }
+  future:
+    - 三竹簡訊：每則計費，通常預付點數，用完即停 → 需監控餘額
+    - 台新虛擬帳號：每筆代收手續費
+    - 寄信服務（Brevo）：免費每天 300 封
+  optional:
+    - Cloudflare Workers Paid：每月 US$5（需綁卡、自動扣款、無消費上限），報名尖峰前視需要升級
 
 # -----------------------------------------------------------------------------
 # 分階段範圍
@@ -149,8 +186,13 @@ decisions:
     reason: 內容量大（關於我們 6 頁、消息約 50 則），利於 SEO 與分享。
   - id: D7
     topic: 帳號所有權
-    choice: GitHub / Cloudflare / 網域 / Analytics 皆以補習班 Email 開設，開發者為協作者
-    reason: 避免開發者成為下一個不透明外包。
+    choice: >
+      GitHub（danny900618）與 Cloudflare（c0981985611@gmail.com）由開發者持有與維護；
+      網域 storykids.com.tw 的註冊（遠振）保留在補習班名下。
+    reason: 2026-10-02 開發者決定自行維護（原規劃為補習班持有、開發者為協作者）。網域留在補習班，確保必要時可自行改指向。
+    handover: >
+      交接時：GitHub repo 用 Transfer ownership 轉移；Cloudflare 無跨帳號搬移功能，需在新帳號重建 Worker 與 D1、
+      以 `wrangler d1 export` 匯出／匯入報名資料（需暫停報名）、重設 secrets 與 Access、網域 zone 重新加入（可能需更換 Nameserver）。
   - id: D8
     topic: 系統切分
     choice: 公開內容存 Git（/cms 編輯）；報名個資只存 Cloudflare D1，由同一個 Worker 的 /api、/admin 處理
@@ -215,7 +257,10 @@ open_questions:
     owner: 補習班 / 台新 / 三竹
     phase: phase2
   - id: Q15
-    question: service@storykids.com.tw 目前是否在使用（能否收信）？網域現有的 MX / SPF 紀錄為何？寄信服務帳號（建議 Brevo）
+    question: >
+      補習班目前使用哪些 @storykids.com.tw 信箱？（MX 指向舊外包主機，舊主機關閉後會失效）
+      收信方案：Cloudflare Email Routing 轉寄到 story698@gmail.com（建議）或 Google Workspace。
+      寄信服務帳號（建議 Brevo）與 API 金鑰；DNS 轉到 Cloudflare 後加 SPF／DKIM／DMARC
     owner: 補習班 / 開發者
     phase: phase2
 
@@ -259,7 +304,8 @@ tasks:
     status: done
   - id: T8a
     title: 內容後台啟用：建立 GitHub OAuth App、設定 GITHUB_CLIENT_ID／GITHUB_CLIENT_SECRET、實測「後台存檔 → 網站自動更新」、邀請補習班人員為 repo 協作者
-    status: todo
+    status: in_progress
+    notes: OAuth App 與 secrets 已設定（2026-10-02），待實測與邀請人員
     depends_on: [T13]
   - id: T9
     title: DNS 切換（遠振 → Cloudflare Nameserver），SSL 自動開通
@@ -279,8 +325,8 @@ tasks:
     notes: 本機測試通過（含 10 筆併發報名 2 個名額 → 2 正取 8 候補）
   - id: T13
     title: 建立正式 D1 資料庫並填入 wrangler.jsonc 的 database_id、套用 migration、設定後台登入（ADMIN_PASSWORD 或 Cloudflare Access）
-    status: todo
-    notes: ⚠️ 完成前不可 push（database_id 是假的，部署會失敗）
+    status: done
+    notes: 2026-10-02 完成：D1 storykids（APAC）、migration 0001、secrets ADMIN_PASSWORD／GITHUB_CLIENT_SECRET。正式交付前改用 Cloudflare Access
   - id: T14
     title: 串接台新虛擬帳號（編碼規則、入帳通知 /api/taishin/notify）
     status: blocked
@@ -290,15 +336,28 @@ tasks:
     status: blocked
     depends_on: [Q13, Q14]
   - id: T16
-    title: 串接 Email 寄送（Brevo 等）並設定 DNS SPF／DKIM
-    status: blocked
-    depends_on: [Q15, T9]
+    title: 串接 Email 寄送（Brevo）並設定 DNS SPF／DKIM／DMARC
+    status: in_progress
+    notes: >
+      2026-10-02：Brevo 帳號已註冊、BREVO_API_KEY 已設定、程式已串接（MAIL_MODE 仍為 mock）、後台可「寄測試信」。
+      剩餘：DNS 轉到 Cloudflare 時在 Brevo 驗證 storykids.com.tw、設定 Email Routing（service@ 轉寄 Gmail）、MAIL_MODE 改 live
+    depends_on: [T9]
   - id: T17
     title: 正式上線前移除「趣味說故事」的測試時段（test-wed、test-sat），改為實際時段
     status: todo
   - id: T18
     title: README.md（架構、服務、部署、開發）
     status: done
+  - id: T19
+    title: 安全補強：Turnstile＋次數限制、逾期／金額不符等入帳轉人工確認、後台登入失敗次數限制、本機略過登入限本機、正式網域測試模式擋報名、CMS 主程式 SRI
+    status: done
+    notes: migration 0002_review_note.sql 需在部署前套用到正式 D1
+  - id: T20
+    title: 後端自動化測試（Vitest + @cloudflare/vitest-plugin，43 項）與 GitHub Actions 自動執行
+    status: done
+  - id: T21
+    title: 正式開放報名前：建立 Cloudflare Turnstile（site key 填 wrangler.jsonc、secret 用 wrangler secret put）
+    status: todo
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
@@ -333,3 +392,14 @@ changelog:
     note: >
       內容後台由 Pages CMS 託管版改為 Sveltia CMS（/cms），GitHub 登入內建於本專案 Worker（src/worker/cms-auth.ts），
       移除 .pages.yml。原因：Pages CMS 登入 API 持續逾時、穩定性不足。
+  - date: 2026-10-02
+    note: 帳號所有權改為由開發者持有（GitHub、Cloudflare），網域註冊保留在補習班；交接步驟記在 decisions D7。
+  - date: 2026-10-02
+    note: 查得網域 Nameserver 在舊外包（ns1/ns2.mor-e.tw），@storykids.com.tw 信箱架在舊外包主機；寄信需 Brevo 帳號與 DNS 驗證紀錄（切 DNS 後設定）。
+  - date: 2026-10-02
+    note: >
+      安全補強與自動化測試：Turnstile／每 IP 報名次數限制、入帳異常（逾期、金額不符、重複繳費、已取消）改為需人工確認並通知公司信箱、
+      後台登入失敗次數限制、ADMIN_DEV_BYPASS 只限本機、正式網域測試模式拒絕報名、Sveltia SRI；新增 migration 0002；
+      test/ 共 43 項測試全數通過，push 時由 GitHub Actions 執行；新增 .npmrc（legacy-peer-deps）。
+  - date: 2026-10-02
+    note: Email 串接 Brevo（sendEmailLive、寄送失敗記錄原因、後台寄測試信），新增 8 項測試（共 51 項通過）；MAIL_MODE 維持 mock。

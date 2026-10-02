@@ -1,6 +1,6 @@
 // 前台 API：剩餘名額查詢、線上報名
 import type { Env, Registration } from './env';
-import { holdsSeatSql, json, nowIso, paymentDeadline } from './env';
+import { clientIp, holdsSeatSql, json, nowIso, paymentDeadline } from './env';
 import { countBySession, findSession, loadSessions } from './sessions';
 import { generateVirtualAccount } from './payment';
 import { notifyRegistered } from './notify';
@@ -28,16 +28,53 @@ interface RegisterInput {
   note?: string;
   agree?: boolean;
   website?: string; // 防機器人欄位（畫面上隱藏），有填就是機器人
+  turnstile_token?: string; // Cloudflare Turnstile 驗證結果
 }
 
 const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
+// Cloudflare Turnstile 伺服器端驗證
+async function verifyTurnstile(env: Env, token: string | undefined, ip: string): Promise<boolean> {
+  if (!env.TURNSTILE_SECRET_KEY) return true; // 尚未設定時略過（仍有次數限制）
+  if (!token) return false;
+  const form = new FormData();
+  form.append('secret', env.TURNSTILE_SECRET_KEY);
+  form.append('response', token);
+  form.append('remoteip', ip);
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
+    const out = (await res.json()) as { success?: boolean };
+    return out.success === true;
+  } catch {
+    return false;
+  }
+}
+
+// 正式網域上，金流若仍是測試模式就不開放報名（避免家長拿到假的繳費帳號）
+export function registrationBlockedReason(request: Request, env: Env): string | null {
+  const host = new URL(request.url).hostname;
+  const productionHosts = (env.PRODUCTION_HOSTS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (productionHosts.includes(host) && env.PAYMENT_MODE !== 'live') return '線上報名系統準備中，請透過 LINE 或電話與講堂聯繫報名';
+  return null;
+}
+
 // POST /api/register：線上報名
 export async function handleRegister(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const blocked = registrationBlockedReason(request, env);
+  if (blocked) return json({ error: blocked }, 503);
+
+  // 次數限制：同一個 IP 短時間內報名太多次（防止灌假報名佔名額）
+  const ip = clientIp(request);
+  if (env.REGISTER_LIMITER) {
+    const { success } = await env.REGISTER_LIMITER.limit({ key: `register:${ip}` });
+    if (!success) return json({ error: '送出次數過多，請稍後再試' }, 429);
+  }
+
   if (!request.headers.get('Content-Type')?.includes('application/json')) return json({ error: '格式錯誤' }, 415);
   const body = (await request.json().catch(() => null)) as RegisterInput | null;
   if (!body) return json({ error: '格式錯誤' }, 400);
   if (body.website) return json({ error: '報名失敗' }, 400);
+  if (!(await verifyTurnstile(env, body.turnstile_token, ip))) return json({ error: '驗證失敗，請重新整理頁面後再送出' }, 400);
 
   const input = {
     session_code: clean(body.session_code, 60),
