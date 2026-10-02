@@ -117,7 +117,12 @@ decisions:
     alternative: Sveltia CMS（需 GitHub 帳號 + Cloudflare Worker OAuth）
   - id: D4
     topic: 部署
-    choice: Cloudflare Pages（連 GitHub，push 自動部署）
+    choice: Cloudflare Workers 靜態資源（連 GitHub，push 自動部署；設定檔 wrangler.jsonc）
+    notes: >
+      Cloudflare 目前的建立流程預設為 Workers（網址 *.workers.dev），功能與 Pages 相同，
+      _redirects 一樣有效。wrangler.jsonc 設定 404 頁與不加結尾斜線。
+    preview_url: https://storykids-web.c0981985611.workers.dev
+    repo: https://github.com/danny900618/storykids_web （暫放開發者個人帳號，之後轉給補習班 / Organization）
   - id: D5
     topic: 網域
     choice: 將 Nameserver 轉到 Cloudflare（註冊商仍留在遠振）
@@ -215,12 +220,15 @@ tasks:
     title: 舊網址 301 轉址（public/_redirects）
     status: done
   - id: T7a
-    title: 建立 GitHub repo（補習班帳號）並推上程式碼
-    status: todo
+    title: 建立 GitHub repo 並推上程式碼
+    status: done
+    notes: 目前在開發者個人帳號，交付時轉移給補習班（建議 GitHub Organization）
   - id: T8
-    title: Cloudflare Pages 部署（預覽網址給補習班確認）
+    title: Cloudflare 部署（預覽網址給補習班確認）
+    status: done
+  - id: T8a
+    title: 連接 Pages CMS 並實測「後台存檔 → 網站自動更新」，再邀請補習班人員
     status: todo
-    depends_on: [T4]
   - id: T9
     title: DNS 切換（遠振 → Cloudflare Nameserver），SSL 自動開通
     status: blocked

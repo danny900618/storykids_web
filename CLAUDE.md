@@ -10,7 +10,7 @@
 - 程式註解與 UI 文字使用繁體中文。
 - 圖片放在 `public/images/`（後台上傳也存這裡，內容欄位存 `/images/...` 路徑）；PDF 放 `public/files/`。`public/images/old/` 是從舊站搬來的圖片。
 - Pages CMS 清空欄位時會寫入 `null`，`content.config.ts` 的選填欄位必須接受 nullish。
-- 舊站網址轉址寫在 `public/_redirects`（Cloudflare Pages 不支援比對查詢參數）。
+- 部署在 Cloudflare Workers（靜態資源），設定在 `wrangler.jsonc`；舊站網址轉址寫在 `public/_redirects`（不支援比對查詢參數）。
 
 ## 指令
 

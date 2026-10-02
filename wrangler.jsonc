@@ -1,0 +1,13 @@
+// Cloudflare Workers 部署設定（純靜態網站，只提供 dist/ 裡的檔案，沒有後端程式）
+// name 必須與 Cloudflare 後台的 Worker 名稱一致
+{
+  "name": "storykids-web",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    // 找不到頁面時顯示 dist/404.html（並回傳 404 狀態碼）
+    "not_found_handling": "404-page",
+    // 網址不加結尾斜線：/about 直接顯示 about/index.html，/about/ 會轉到 /about
+    "html_handling": "drop-trailing-slash"
+  }
+}
