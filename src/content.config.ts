@@ -1,7 +1,7 @@
-// 內容集合定義：src/content/ 底下的 Markdown 由 Pages CMS（.pages.yml）編輯。
-// 新增或修改欄位時，請同步更新 .pages.yml，兩邊欄位名稱必須一致。
+// 內容集合定義：src/content/ 底下的 Markdown 由內容後台 Sveltia CMS（public/cms/config.yml）編輯。
+// 新增或修改欄位時，請同步更新 public/cms/config.yml，兩邊欄位名稱必須一致。
 //
-// 注意：Pages CMS 對「清空的欄位」會寫入 null，所以選填欄位一律用 nullish 接受，
+// 注意：後台清空欄位時可能寫入 null 或空字串，所以選填欄位一律用 nullish 接受，
 // 再轉成 undefined / 預設值，避免後台清空欄位後網站建置失敗。
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
@@ -18,8 +18,7 @@ const bool = (fallback: boolean) =>
     .nullish()
     .transform((v) => v ?? fallback);
 const orderNumber = z
-  .number()
-  .nullish()
+  .preprocess((v) => (v === '' ? undefined : v), z.number().nullish())
   .transform((v) => v ?? 100);
 const stringList = z
   .array(z.string())
@@ -67,8 +66,22 @@ const courses = defineCollection({
     published: bool(true),
     // 排序：數字越小越前面
     order: orderNumber,
-    // 個別課程的報名連結；未填寫時使用網站設定中的預設報名連結
+    // 個別課程的報名連結；未填寫時使用網站設定中的預設報名連結（有設定上課時段時改用線上報名）
     registration_url: optionalText,
+    // 上課時段：家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，已有人報名後不可修改
+    sessions: z
+      .array(
+        z.object({
+          code: z.string().regex(/^[a-z0-9-]+$/, '時段代號只能用小寫英文、數字與 -'),
+          name: z.string(),
+          time: optionalText,
+          capacity: z.number().int().min(0),
+          price: z.number().int().min(0),
+          open: bool(true),
+        }),
+      )
+      .nullish()
+      .transform((v) => v ?? []),
   }),
 });
 

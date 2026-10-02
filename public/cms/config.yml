@@ -1,0 +1,210 @@
+# 內容後台（Sveltia CMS）設定：https://sveltiacms.app/en/docs
+# 補習班人員在後台看到的欄位都定義在這裡。
+# 修改欄位時，請同步更新 src/content.config.ts（欄位名稱必須一致）。
+# 注意：Sveltia 的欄位預設為「必填」，選填欄位要加 required: false。
+
+backend:
+  name: github
+  repo: danny900618/storykids_web
+  branch: main
+  # GitHub 登入由本專案的 Worker 處理（src/worker/cms-auth.ts）
+  # ⚠️ DNS 切換到 storykids.com.tw 後，可改為 https://storykids.com.tw（並更新 GitHub OAuth App 的 callback URL）
+  base_url: https://storykids-web.c0981985611.workers.dev
+  auth_endpoint: api/cms-auth/auth
+  commit_messages:
+    create: "新增 {{collection}}：{{slug}}（內容後台）"
+    update: "更新 {{collection}}：{{slug}}（內容後台）"
+    delete: "刪除 {{collection}}：{{slug}}（內容後台）"
+    uploadMedia: "上傳圖片：{{path}}（內容後台）"
+    deleteMedia: "刪除圖片：{{path}}（內容後台）"
+
+# 圖片存放位置：整個 public/images（含舊站搬來的 public/images/old/），後台才能預覽與選用所有圖片
+# 後台上傳的圖片推上 GitHub 後會自動縮圖（.github/workflows/optimize-images.yml）
+media_folder: public/images
+public_folder: /images
+
+site_url: https://storykids-web.c0981985611.workers.dev
+display_url: https://storykids-web.c0981985611.workers.dev
+
+collections:
+  # ---------------------------------------------------------------- 最新消息
+  - name: news
+    label: 最新消息
+    label_singular: 消息
+    folder: src/content/news
+    extension: md
+    format: frontmatter
+    create: true
+    # 中文標題無法轉成網址，所以檔名用建立時間
+    slug: "{{year}}-{{month}}-{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{date}}｜{{title}}"
+    sortable_fields:
+      fields: [date, title]
+      default:
+        field: date
+        direction: descending
+    fields:
+      - { name: title, label: 標題, widget: string }
+      - { name: date, label: 日期, widget: datetime, type: date, format: YYYY-MM-DD, default: "{{now}}" }
+      - { name: featured, label: 顯示在首頁（會出現在首頁最上方的輪播）, widget: boolean, default: false, required: false }
+      - { name: published, label: 啟用（取消勾選可當草稿，不會出現在網站上）, widget: boolean, default: true, required: false }
+      - { name: cover, label: 封面圖片, widget: image, required: false }
+      - { name: slide_image, label: 首頁輪播圖片（建議橫幅 1500×730；未上傳則使用封面圖片）, widget: image, required: false }
+      - { name: summary, label: 摘要（列表卡片上顯示；未填寫會自動擷取內文開頭）, widget: text, required: false }
+      - { name: body, label: 內文, widget: richtext, required: false }
+
+  # ---------------------------------------------------------------- 課程介紹
+  - name: courses
+    label: 課程介紹
+    label_singular: 課程
+    folder: src/content/courses
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "course-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{order}}｜{{title}}"
+    sortable_fields:
+      fields: [order, title]
+      default:
+        field: order
+        direction: ascending
+    fields:
+      - { name: title, label: 課程名稱, widget: string }
+      - { name: category, label: 班別（例如：學期班（11509學期）、寒假營隊）, widget: string, default: 學期班, required: false }
+      - { name: audience, label: 適合對象（例如：小一~小二）, widget: string, required: false }
+      - { name: summary, label: 課程簡介（顯示在課程卡片上）, widget: text, required: false }
+      - { name: schedule, label: 上課時間, widget: string, required: false }
+      - { name: class_size, label: 班級人數, widget: string, required: false }
+      - { name: price, label: 費用（顯示用文字，例如：NT$ 11,000 / 期）, widget: string, required: false }
+      - { name: cover, label: 課程卡片圖片, widget: image, required: false }
+      - { name: featured, label: 顯示在首頁, widget: boolean, default: false, required: false }
+      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
+      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: registration_url, label: 外部報名連結（選填；有設定下方「上課時段」時會改用網站的線上報名，此欄不需填）, widget: string, required: false }
+      - name: sessions
+        label: 上課時段（家長在課程頁選擇時段線上報名）
+        label_singular: 時段
+        widget: list
+        required: false
+        collapsed: true
+        summary: "{{fields.name}}｜名額 {{fields.capacity}}｜NT$ {{fields.price}}"
+        fields:
+          - name: code
+            label: 時段代號（小寫英文、數字、-，例如 winter116-a；⚠️ 已有人報名後請勿修改或刪除此時段）
+            widget: string
+            pattern: ["^[a-z0-9-]+$", "只能使用小寫英文、數字與 -"]
+          - { name: name, label: 時段名稱（例如：116 冬令營 A 梯）, widget: string }
+          - { name: time, label: 上課時間（例如：1/20–1/24 每天 9:00–16:30）, widget: string, required: false }
+          - { name: capacity, label: 名額, widget: number, value_type: int, min: 0, default: 12 }
+          - { name: price, label: 費用（新台幣，只填數字）, widget: number, value_type: int, min: 0 }
+          - { name: open, label: 開放報名（取消勾選即暫停報名）, widget: boolean, default: true, required: false }
+      - { name: body, label: 課程詳細內容, widget: richtext, required: false }
+
+  # ---------------------------------------------------------------- 關於講堂 / 上課須知
+  - name: pages
+    label: 關於講堂、上課須知
+    label_singular: 頁面
+    folder: src/content/pages
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "page-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{section}}｜{{order}}｜{{title}}"
+    sortable_fields:
+      fields: [order, title]
+      default:
+        field: order
+        direction: ascending
+    fields:
+      - { name: title, label: 頁面標題, widget: string }
+      - name: section
+        label: 放在哪個選單
+        widget: select
+        default: about
+        options:
+          - { label: 關於講堂, value: about }
+          - { label: 上課須知, value: info }
+      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: description, label: 簡介（選填，顯示在目錄卡片與首頁）, widget: text, required: false }
+      - { name: cover, label: 首頁圖片（選填，只有排序第一的「關於講堂」頁面會顯示在首頁）, widget: image, required: false }
+      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
+      - { name: body, label: 內文, widget: richtext, required: false }
+
+  # ---------------------------------------------------------------- 講堂老師
+  - name: teachers
+    label: 講堂老師
+    label_singular: 老師
+    folder: src/content/teachers
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "teacher-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{order}}｜{{name}} 老師（{{role}}）"
+    sortable_fields:
+      fields: [order, name]
+      default:
+        field: order
+        direction: ascending
+    fields:
+      - { name: name, label: 老師名字（例如：將軍，網站會自動加上「老師」）, widget: string }
+      - { name: role, label: 職稱（例如：班主任、指導老師）, widget: string, required: false }
+      - { name: category, label: 分類標籤（顯示在卡片上方，例如：課程總監、口語表達）, widget: string, required: false }
+      - { name: major, label: 學歷（例如：中興大學 教育研究所）, widget: string, required: false }
+      - { name: photo, label: 照片（選填）, widget: image, required: false }
+      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
+      - { name: body, label: 老師簡介, widget: richtext, required: false }
+
+  # ---------------------------------------------------------------- 幫孩子鼓掌
+  - name: gallery
+    label: 幫孩子鼓掌（相簿／影片）
+    label_singular: 相簿
+    folder: src/content/gallery
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "album-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{title}}"
+    sortable_fields:
+      fields: [date, order, title]
+      default:
+        field: order
+        direction: ascending
+    fields:
+      - { name: title, label: 標題, widget: string }
+      - { name: subtitle, label: 副標題（例如：閩南語演說、一對一課程）, widget: string, required: false }
+      - { name: summary, label: 簡短描述（列表上顯示；未填寫會自動擷取說明文字開頭）, widget: text, required: false }
+      - { name: date, label: 日期（有日期的會排在最前面，新到舊）, widget: datetime, type: date, format: YYYY-MM-DD, required: false }
+      - { name: cover, label: 封面圖片, widget: image, required: false }
+      - { name: images, label: 相簿照片（可一次選多張）, widget: image, multiple: true, required: false }
+      - { name: youtube, label: YouTube 影片網址（選填；只填影片、不放照片時，會顯示在頁面最上方）, widget: string, required: false }
+      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
+      - { name: order, label: 排序（沒有日期的項目才會用到，數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: body, label: 說明文字, widget: richtext, required: false }
+
+  # ---------------------------------------------------------------- 網站設定
+  - name: settings
+    label: 網站設定
+    files:
+      - name: site
+        label: 網站設定
+        file: src/content/site.json
+        format: json
+        fields:
+          - { name: name, label: 網站名稱, widget: string }
+          - { name: full_name, label: 立案全名, widget: string, required: false }
+          - { name: slogan, label: 標語（首頁大標）, widget: string, required: false }
+          - { name: description, label: 網站介紹（首頁與 Google 搜尋結果顯示）, widget: text, required: false }
+          - { name: logo, label: Logo, widget: image, required: false }
+          - { name: hero_image, label: 首頁主視覺圖片（沒有輪播消息時才會顯示；建議橫式、寬 1600px 以上）, widget: image, required: false }
+          - { name: phone, label: 電話, widget: string, required: false }
+          - { name: fax, label: 傳真, widget: string, required: false }
+          - { name: address, label: 地址, widget: string, required: false }
+          - { name: address_note, label: 地址補充（例如：文心森林公園旁）, widget: string, required: false }
+          - { name: map_url, label: Google 地圖連結（選填；未填寫會用地址自動產生）, widget: string, required: false }
+          - { name: hours, label: 服務時間（可換行）, widget: text, required: false }
+          - { name: email, label: Email, widget: string, required: false }
+          - { name: line_url, label: LINE 官方帳號連結, widget: string, required: false }
+          - { name: facebook_url, label: Facebook 粉絲專頁連結, widget: string, required: false }
+          - { name: registration_url, label: 線上報名連結（課程沒有設定上課時段時使用；未填寫時報名按鈕會連到 LINE）, widget: string, required: false }
+          - { name: registration_label, label: 報名按鈕文字, widget: string, default: 線上報名, required: false }

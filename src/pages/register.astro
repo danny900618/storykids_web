@@ -1,0 +1,189 @@
+---
+// 線上報名：/register?session=時段代號
+// 頁面本身是靜態的；時段資訊讀 /data/sessions.json，送出後呼叫 /api/register
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import { site } from '../lib/site';
+
+const grades = ['幼兒園大班', '國小一年級', '國小二年級', '國小三年級', '國小四年級', '國小五年級', '國小六年級', '國中一年級', '國中二年級', '國中三年級', '其他'];
+const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-base focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none';
+---
+
+<BaseLayout title="線上報名" description="故事講堂課程線上報名">
+  <meta name="robots" content="noindex" slot="head" />
+  <PageHeader title="線上報名" crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+
+  <div class="container-page max-w-3xl py-12">
+    <!-- 找不到時段 -->
+    <div id="no-session" class="hidden rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
+      <p class="text-lg font-bold">找不到這個上課時段</p>
+      <p class="mt-2 text-ink-500">請回到課程介紹，選擇要報名的時段。</p>
+      <a href="/courses" class="btn-primary mt-6">看課程介紹</a>
+    </div>
+
+    <!-- 報名表 -->
+    <div id="form-wrap" class="hidden">
+      <div class="rounded-2xl bg-brand-50 p-5 ring-1 ring-brand-200">
+        <p class="text-sm font-bold text-brand-700">報名時段</p>
+        <p class="mt-1 text-xl font-bold text-ink-900" id="s-title"></p>
+        <p class="mt-1 text-ink-700" id="s-time"></p>
+        <p class="mt-2 flex flex-wrap gap-x-4 text-sm">
+          <span class="font-bold text-brand-700" id="s-price"></span>
+          <span class="font-bold" id="s-remaining"></span>
+        </p>
+      </div>
+
+      <form id="register-form" class="mt-8 space-y-5" novalidate>
+        <div class="grid gap-5 sm:grid-cols-2">
+          <label class="block">
+            <span class="font-bold">學生姓名 <span class="text-brand-600">*</span></span>
+            <input name="student_name" required maxlength="30" autocomplete="off" class={input} />
+          </label>
+          <label class="block">
+            <span class="font-bold">家長姓名 <span class="text-brand-600">*</span></span>
+            <input name="parent_name" required maxlength="30" autocomplete="name" class={input} />
+          </label>
+          <label class="block">
+            <span class="font-bold">學校</span>
+            <input name="school" maxlength="50" class={input} />
+          </label>
+          <label class="block">
+            <span class="font-bold">年級</span>
+            <select name="grade" class={input}>
+              <option value="">請選擇</option>
+              {grades.map((g) => <option>{g}</option>)}
+            </select>
+          </label>
+          <label class="block">
+            <span class="font-bold">家長手機 <span class="text-brand-600">*</span></span>
+            <input name="phone" required inputmode="tel" autocomplete="tel" placeholder="0912345678" maxlength="12" class={input} />
+            <span class="mt-1 block text-xs text-ink-500">繳費帳號與通知會以簡訊寄送</span>
+          </label>
+          <label class="block">
+            <span class="font-bold">Email <span class="text-brand-600">*</span></span>
+            <input name="email" type="email" required autocomplete="email" maxlength="100" class={input} />
+          </label>
+        </div>
+        <label class="block">
+          <span class="font-bold">備註</span>
+          <textarea name="note" rows="3" maxlength="500" class={input} placeholder="例如：孩子的特殊需求、想詢問的事項"></textarea>
+        </label>
+        <!-- 防機器人欄位：畫面上看不到，一般使用者不會填寫 -->
+        <input name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+
+        <label class="flex items-start gap-3 rounded-xl bg-white p-4 ring-1 ring-black/10">
+          <input name="agree" type="checkbox" class="mt-1 size-5 accent-brand-600" />
+          <span class="text-sm leading-relaxed text-ink-700">
+            我同意{site.full_name}蒐集以上個人資料，用於本次課程報名、繳費通知與聯繫，不會提供給第三方。
+          </span>
+        </label>
+
+        <p id="form-error" class="hidden rounded-xl bg-red-50 p-4 text-red-700" role="alert"></p>
+        <button type="submit" class="btn-primary w-full py-3.5 text-lg disabled:opacity-60" id="submit-btn">送出報名</button>
+      </form>
+    </div>
+
+    <!-- 報名結果 -->
+    <div id="result" class="hidden" aria-live="polite"></div>
+  </div>
+</BaseLayout>
+
+<script>
+  interface Session { code: string; name: string; time: string; price: number; capacity: number; open: boolean; course_id: string; course_title: string }
+  interface Result {
+    id: number; admission: '正取' | '候補'; waitlist_position: number | null; course_title: string; session_name: string;
+    session_time: string; student_name: string; amount: number; va_account: string | null; va_expires_at: string | null; test_mode: boolean;
+  }
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const twTime = (iso: string) =>
+    new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  const code = new URLSearchParams(location.search).get('session') ?? '';
+
+  async function init() {
+    const sessions = (await fetch('/data/sessions.json').then((r) => r.json())) as Session[];
+    const s = sessions.find((x) => x.code === code);
+    if (!s || !s.open) {
+      $('no-session').classList.remove('hidden');
+      return;
+    }
+    $('s-title').textContent = `${s.course_title}｜${s.name}`;
+    $('s-time').textContent = s.time;
+    $('s-price').textContent = money(s.price);
+    $('form-wrap').classList.remove('hidden');
+
+    // 即時剩餘名額
+    fetch('/api/availability', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data: Record<string, { remaining: number }>) => {
+        const info = data[code];
+        if (!info) return;
+        $('s-remaining').innerHTML =
+          info.remaining > 0
+            ? `<span class="text-green-700">剩餘名額 ${info.remaining} 人</span>`
+            : '<span class="text-brand-600">已額滿，送出後將列為候補</span>';
+      })
+      .catch(() => {});
+  }
+
+  function showResult(r: Result) {
+    const testNote = r.test_mode
+      ? '<p class="mt-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-800">⚠️ 測試模式：以下繳費帳號為測試資料，請勿轉帳；簡訊與 Email 也不會真的寄出。</p>'
+      : '';
+    const body =
+      r.admission === '正取'
+        ? `<p class="text-sm font-bold text-green-700">報名成功</p>
+           <h2 class="mt-1 text-2xl font-bold">請於期限內完成繳費</h2>
+           <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+             <div><dt class="text-sm text-ink-500">報名編號</dt><dd class="font-bold">${r.id}</dd></div>
+             <div><dt class="text-sm text-ink-500">課程時段</dt><dd class="font-bold">${esc(r.course_title)}｜${esc(r.session_name)}</dd></div>
+             <div><dt class="text-sm text-ink-500">學費</dt><dd class="text-xl font-bold text-brand-700">${money(r.amount)}</dd></div>
+             <div><dt class="text-sm text-ink-500">繳費期限</dt><dd class="font-bold">${r.va_expires_at ? twTime(r.va_expires_at) : ''}</dd></div>
+           </dl>
+           <div class="mt-6 rounded-2xl bg-brand-50 p-5 ring-1 ring-brand-200">
+             <p class="text-sm text-ink-500">專屬繳費帳號（台新銀行 812）</p>
+             <p class="mt-1 font-mono text-2xl font-bold tracking-wider text-ink-900">${esc(r.va_account ?? '')}</p>
+             <p class="mt-2 text-sm text-ink-700">可使用 ATM、網路銀行或臨櫃轉帳，請轉入正確金額。逾期帳號失效，名額將釋出。</p>
+           </div>
+           <p class="mt-4 text-sm text-ink-500">繳費帳號也會以簡訊與 Email 寄給您，繳費完成後系統會再通知您。</p>`
+        : `<p class="text-sm font-bold text-brand-600">已登記候補</p>
+           <h2 class="mt-1 text-2xl font-bold">目前名額已滿，您是候補第 ${r.waitlist_position ?? '-'} 位</h2>
+           <p class="mt-4 text-ink-700">${esc(r.student_name)}「${esc(r.course_title)}｜${esc(r.session_name)}」已登記候補（報名編號 ${r.id}）。如有名額釋出，我們將主動與您聯繫，屆時再提供繳費帳號。</p>`;
+    $('result').innerHTML = `<div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5 sm:p-8">${body}${testNote}
+      <div class="mt-8 flex flex-wrap gap-3"><a href="/courses" class="btn-outline">回課程介紹</a><a href="/" class="btn-outline">回首頁</a></div></div>`;
+    $('form-wrap').classList.add('hidden');
+    $('result').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  $('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    const errorBox = $('form-error');
+    const btn = $<HTMLButtonElement>('submit-btn');
+    errorBox.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = '送出中…';
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, agree: data.agree === 'on', session_code: code }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || '報名失敗，請稍後再試');
+      showResult(out as Result);
+    } catch (err) {
+      errorBox.textContent = err instanceof Error ? err.message : '報名失敗，請稍後再試';
+      errorBox.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = '送出報名';
+    }
+  });
+
+  init().catch(() => $('no-session').classList.remove('hidden'));
+</script>

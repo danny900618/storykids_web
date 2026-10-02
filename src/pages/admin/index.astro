@@ -1,0 +1,252 @@
+---
+// 報名管理後台：/admin（Worker 驗證登入後才會回傳這個頁面，資料一律透過 /api/admin/* 取得）
+import '../../styles/global.css';
+---
+
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>報名管理｜故事講堂</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="bg-slate-50 text-ink-900">
+    <header class="sticky top-0 z-30 border-b border-black/5 bg-white">
+      <div class="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3">
+        <h1 class="text-lg font-bold">故事講堂｜報名管理</h1>
+        <span id="mode-badge" class="hidden rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800"></span>
+        <div class="ml-auto flex flex-wrap items-center gap-3 text-sm">
+          <span id="actor" class="text-ink-500"></span>
+          <a href="/cms" target="_blank" class="text-brand-700 hover:underline">內容管理（課程與時段設定）</a>
+          <a href="/" target="_blank" class="text-brand-700 hover:underline">網站首頁</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-[1400px] space-y-6 px-4 py-6">
+      <!-- 各時段概況 -->
+      <section>
+        <h2 class="font-bold">各時段報名概況</h2>
+        <div id="sessions" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div>
+        <p id="orphans" class="mt-3 hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p>
+      </section>
+
+      <!-- 篩選 -->
+      <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <form id="filters" class="flex flex-wrap items-end gap-3">
+          <label class="text-sm">時段
+            <select name="session" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部時段</option></select>
+          </label>
+          <label class="text-sm">正取／候補
+            <select name="admission" class="mt-1 block rounded-lg border border-black/15 px-3 py-2">
+              <option value="">全部</option><option>正取</option><option>候補</option>
+            </select>
+          </label>
+          <label class="text-sm">狀態
+            <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>逾期未繳</option></select>
+          </label>
+          <label class="text-sm">搜尋
+            <input name="q" placeholder="姓名、手機、Email、帳號、編號" class="mt-1 block w-64 rounded-lg border border-black/15 px-3 py-2" />
+          </label>
+          <button class="rounded-lg bg-brand-600 px-4 py-2 font-bold text-white hover:bg-brand-700">查詢</button>
+          <button type="button" id="export" class="rounded-lg border border-brand-600 px-4 py-2 font-bold text-brand-700 hover:bg-brand-50">匯出 Excel（CSV）</button>
+          <span id="count" class="ml-auto text-sm text-ink-500"></span>
+        </form>
+      </section>
+
+      <!-- 報名列表 -->
+      <section class="overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+        <table class="w-full min-w-[1200px] text-left text-sm">
+          <thead class="bg-slate-100 text-ink-500">
+            <tr>
+              <th class="px-3 py-3">編號</th><th class="px-3 py-3">報名時間</th><th class="px-3 py-3">課程時段</th>
+              <th class="px-3 py-3">學生／家長</th><th class="px-3 py-3">學校／年級</th><th class="px-3 py-3">聯絡方式</th>
+              <th class="px-3 py-3">正取／候補</th><th class="px-3 py-3">狀態</th><th class="px-3 py-3">金額／繳費帳號</th><th class="px-3 py-3">操作</th>
+            </tr>
+          </thead>
+          <tbody id="rows" class="divide-y divide-black/5"></tbody>
+        </table>
+        <p id="empty" class="hidden p-8 text-center text-ink-500">沒有符合條件的報名</p>
+      </section>
+    </main>
+
+    <!-- 單筆紀錄（通知、入帳、操作） -->
+    <dialog id="history" class="m-auto w-[min(800px,95vw)] rounded-2xl p-0 backdrop:bg-black/40">
+      <div class="flex items-center justify-between border-b border-black/5 px-5 py-3">
+        <h3 class="font-bold" id="history-title"></h3>
+        <button type="button" class="rounded-lg px-3 py-1 hover:bg-slate-100" data-close>關閉</button>
+      </div>
+      <div id="history-body" class="max-h-[70vh] space-y-6 overflow-y-auto p-5 text-sm"></div>
+    </dialog>
+
+    <script>
+      interface Reg {
+        id: number; session_code: string; course_title: string; session_name: string; student_name: string; parent_name: string;
+        school: string | null; grade: string | null; phone: string; email: string; note: string | null; admission: string; status: string;
+        amount: number; va_account: string | null; va_expires_at: string | null; paid_amount: number | null; paid_at: string | null;
+        created_at: string; expired: boolean;
+      }
+      interface SessionInfo { code: string; name: string; course_title: string; capacity: number; taken: number; waitlist: number; open: boolean; price: number }
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+      const money = (n: number | null) => (n == null ? '' : `NT$ ${n.toLocaleString('en-US')}`);
+      const tw = (iso: string | null) =>
+        iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+
+      let config: { actor: string; payment_mode: string; mail_mode: string; sms_mode: string; statuses: string[] };
+      const filters = $<HTMLFormElement>('filters');
+
+      async function api<T>(path: string, init?: RequestInit): Promise<T> {
+        const res = await fetch(`/api/admin${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data as { error?: string }).error || `錯誤 ${res.status}`);
+        return data as T;
+      }
+
+      const query = () => new URLSearchParams(Object.entries(Object.fromEntries(new FormData(filters))).filter(([, v]) => v) as [string, string][]);
+
+      async function loadSessions() {
+        const { sessions, orphans } = await api<{ sessions: SessionInfo[]; orphans: string[] }>('/sessions');
+        $('sessions').innerHTML = sessions.length
+          ? sessions
+              .map(
+                (s) => `<button type="button" data-filter-session="${esc(s.code)}" class="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-black/5 hover:ring-brand-500">
+                  <p class="text-xs text-ink-500">${esc(s.course_title)}</p>
+                  <p class="font-bold">${esc(s.name)} ${s.open ? '' : '<span class="text-xs text-ink-500">（暫停報名）</span>'}</p>
+                  <p class="mt-2 text-sm">正取 <b class="${s.taken >= s.capacity ? 'text-brand-600' : 'text-green-700'}">${s.taken} / ${s.capacity}</b>
+                  ・候補 <b>${s.waitlist}</b>・剩餘 <b>${Math.max(0, s.capacity - s.taken)}</b></p>
+                  <p class="mt-1 text-xs text-ink-500">代號 ${esc(s.code)}・${money(s.price)}</p></button>`,
+              )
+              .join('')
+          : '<p class="text-sm text-ink-500">尚未設定任何上課時段，請到「內容管理」的課程裡新增「上課時段」。</p>';
+        const sel = filters.elements.namedItem('session') as HTMLSelectElement;
+        const current = sel.value;
+        sel.innerHTML = '<option value="">全部時段</option>' + [...sessions.map((s) => [s.code, `${s.course_title}｜${s.name}`]), ...orphans.map((o) => [o, `${o}（CMS 已刪除）`])]
+          .map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+        sel.value = current;
+        $('orphans').classList.toggle('hidden', !orphans.length);
+        $('orphans').textContent = orphans.length ? `⚠️ 以下時段已從 CMS 刪除或改了代號，但仍有報名資料：${orphans.join('、')}。請到 CMS 恢復該時段。` : '';
+      }
+
+      function row(r: Reg): string {
+        const statusOptions = config.statuses.map((s) => `<option ${s === r.status ? 'selected' : ''}>${esc(s)}</option>`).join('');
+        const paid = ['已付費', '合庫轉帳', '現金繳清'].includes(r.status);
+        const vaInfo = r.va_account
+          ? `<div class="font-mono">${esc(r.va_account)}</div><div class="text-xs ${r.expired ? 'font-bold text-red-600' : 'text-ink-500'}">${r.expired ? '已逾期 ' : '期限 '}${tw(r.va_expires_at)}</div>`
+          : '<div class="text-xs text-ink-500">候補不產生帳號</div>';
+        const mockBtn = config.payment_mode === 'mock' && r.va_account && !paid
+          ? `<button data-mock="${r.id}" class="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-700">模擬入帳</button>` : '';
+        return `<tr class="align-top ${r.status === '取消報名' ? 'opacity-50' : ''}">
+          <td class="px-3 py-3 font-bold">${r.id}</td>
+          <td class="px-3 py-3 whitespace-nowrap">${tw(r.created_at)}</td>
+          <td class="px-3 py-3"><div class="text-xs text-ink-500">${esc(r.course_title)}</div>${esc(r.session_name)}</td>
+          <td class="px-3 py-3"><div class="font-bold">${esc(r.student_name)}</div><div class="text-ink-500">${esc(r.parent_name)}</div></td>
+          <td class="px-3 py-3">${esc(r.school)}<div class="text-ink-500">${esc(r.grade)}</div></td>
+          <td class="px-3 py-3"><div>${esc(r.phone)}</div><div class="text-ink-500">${esc(r.email)}</div>${r.note ? `<div class="mt-1 text-xs text-ink-500">備註：${esc(r.note)}</div>` : ''}</td>
+          <td class="px-3 py-3"><select data-admission="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
+            <option ${r.admission === '正取' ? 'selected' : ''}>正取</option><option ${r.admission === '候補' ? 'selected' : ''}>候補</option></select></td>
+          <td class="px-3 py-3"><select data-status="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${paid ? 'bg-green-50' : ''}">${statusOptions}</select>
+            ${paid && r.paid_at ? `<div class="mt-1 text-xs text-green-700">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}</td>
+          <td class="px-3 py-3"><div class="font-bold">${money(r.amount)}</div>${vaInfo}</td>
+          <td class="space-y-1 px-3 py-3"><div class="flex flex-wrap gap-1">${mockBtn}
+            <button data-history="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 text-xs hover:bg-slate-100">紀錄</button></div></td>
+        </tr>`;
+      }
+
+      async function loadRows() {
+        const rows = await api<Reg[]>(`/registrations?${query()}`);
+        $('rows').innerHTML = rows.map(row).join('');
+        $('empty').classList.toggle('hidden', rows.length > 0);
+        $('count').textContent = `共 ${rows.length} 筆`;
+      }
+
+      const refresh = () => Promise.all([loadSessions(), loadRows()]).catch((e) => alert(e.message));
+
+      async function update(id: string, body: Record<string, string>, confirmText?: string) {
+        if (confirmText && !confirm(confirmText)) return refresh();
+        try {
+          await api(`/registrations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        } catch (e) {
+          alert((e as Error).message);
+        }
+        refresh();
+      }
+
+      document.addEventListener('change', (e) => {
+        const el = e.target as HTMLSelectElement;
+        if (el.dataset.status) update(el.dataset.status, { status: el.value });
+        if (el.dataset.admission) {
+          const msg = el.value === '正取'
+            ? '確定將這筆候補遞補為正取？系統會產生繳費帳號，並以簡訊與 Email 通知家長。'
+            : '確定改為候補？原繳費帳號會立即失效。';
+          update(el.dataset.admission, { admission: el.value }, msg);
+        }
+      });
+
+      document.addEventListener('click', async (e) => {
+        const el = (e.target as HTMLElement).closest<HTMLElement>('[data-mock],[data-history],[data-filter-session],[data-close]');
+        if (!el) return;
+        if (el.dataset.mock) {
+          if (!confirm('模擬台新入帳通知（測試用）：這筆報名會被標記為已付費，並記錄收據通知。')) return;
+          try {
+            const out = await api<{ result: string }>(`/registrations/${el.dataset.mock}/mock-payment`, { method: 'POST', body: '{}' });
+            const labels: Record<string, string> = { paid: '對帳成功，已改為已付費', amount_mismatch: '金額不符', unmatched: '查無帳號', already_paid: '已付費過', duplicate_event: '重複的入帳通知' };
+            alert(labels[out.result] ?? out.result);
+          } catch (err) {
+            alert((err as Error).message);
+          }
+          refresh();
+        }
+        if (el.dataset.history) showHistory(el.dataset.history);
+        if (el.dataset.filterSession !== undefined) {
+          (filters.elements.namedItem('session') as HTMLSelectElement).value = el.dataset.filterSession;
+          loadRows();
+        }
+        if (el.dataset.close !== undefined) $<HTMLDialogElement>('history').close();
+      });
+
+      async function showHistory(id: string) {
+        const h = await api<{ notifications: any[]; payments: any[]; audit: any[] }>(`/registrations/${id}/history`);
+        const resultLabel: Record<string, string> = { mock: '測試模式（未寄出）', sent: '已寄出', failed: '寄送失敗' };
+        const section = (title: string, items: string[]) =>
+          `<div><h4 class="mb-2 font-bold">${title}</h4>${items.length ? items.join('') : '<p class="text-ink-500">無</p>'}</div>`;
+        $('history-title').textContent = `報名編號 ${id} 的紀錄`;
+        $('history-body').innerHTML = [
+          section('通知（Email／簡訊）', h.notifications.map((n) => `<div class="mb-3 rounded-xl bg-slate-50 p-3">
+            <p class="text-xs text-ink-500">${tw(n.created_at)}・${n.channel === 'email' ? 'Email' : '簡訊'} → ${esc(n.recipient)}・<b>${resultLabel[n.result] ?? esc(n.result)}</b></p>
+            ${n.subject ? `<p class="mt-1 font-bold">${esc(n.subject)}</p>` : ''}<pre class="mt-1 font-sans whitespace-pre-wrap">${esc(n.body)}</pre></div>`)),
+          section('入帳紀錄', h.payments.map((p) => `<p class="mb-1">${tw(p.created_at)}・${money(p.amount)}・${esc(p.result)}・序號 ${esc(p.ref)}</p>`)),
+          section('操作紀錄', h.audit.map((a) => `<p class="mb-1">${tw(a.created_at)}・${esc(a.actor)}・${esc(a.action)}：${esc(a.detail)}</p>`)),
+        ].join('');
+        $<HTMLDialogElement>('history').showModal();
+      }
+
+      filters.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadRows();
+      });
+      $('export').addEventListener('click', () => (location.href = `/api/admin/export.csv?${query()}`));
+
+      (async () => {
+        try {
+          config = await api('/config');
+        } catch (e) {
+          document.querySelector('main')!.innerHTML = `<p class="rounded-xl bg-red-50 p-4 text-red-700">${esc((e as Error).message)}</p>`;
+          return;
+        }
+        $('actor').textContent = `登入：${config.actor}`;
+        const modes = [config.payment_mode, config.mail_mode, config.sms_mode];
+        if (modes.includes('mock')) {
+          $('mode-badge').textContent = '測試模式：繳費帳號為假資料、Email 與簡訊不會寄出（可在「紀錄」查看內容）';
+          $('mode-badge').classList.remove('hidden');
+        }
+        const statusSel = filters.elements.namedItem('status') as HTMLSelectElement;
+        statusSel.insertAdjacentHTML('beforeend', config.statuses.map((s) => `<option>${esc(s)}</option>`).join(''));
+        refresh();
+      })();
+    </script>
+  </body>
+</html>

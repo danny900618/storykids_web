@@ -92,11 +92,23 @@ phases:
     out_of_scope: [報名系統, 金流, 簡訊]
   phase2:
     name: 報名系統 + 金流
-    status: on_hold
+    status: in_progress
     notes: >
-      需求盤點完成後再決定。候選：金流平台/開店平台/報名平台（SaaS，零後端）、
-      Google 表單+試算表（過渡）、或自建小後端（Cloudflare Workers + D1 /
-      SurveyCake Webhook + 台新虛擬帳號）。報名資料（個資）絕不存放在 Git。
+      2026-10-02 決定自建：Cloudflare Workers（同一專案）+ D1 資料庫。報名資料（個資）只存 D1，絕不存放在 Git。
+      兩個後台：/cms（Sveltia CMS）管課程與上課時段（內容），自建 /admin 管報名資料（Cloudflare Access 以 Email 驗證登入）。
+      兩邊以「時段代號」串接；已有報名的時段不可刪除或改代號。
+    requirements:
+      - 課程介紹與報名：後台可新增課程、編輯內文與圖片；課程頁顯示費用、課程資訊與上課時段（即時剩餘名額）
+      - 上課時段：在內容後台 /cms 設定（名稱、時間、名額、費用、時段代號）
+      - 報名表欄位：沿用舊系統（學生姓名、家長姓名、學校、年級、手機、Email）＋ 選擇時段、備註
+      - 額滿處理：自動列為候補（不產生繳費帳號），由行政手動遞補
+      - 繳費：報名時繳全額；每筆報名產生台新虛擬帳號（96989 + 9 碼，3 天期限，依台新規格計算）
+      - 自動對帳：接收台新入帳通知（或定時讀對帳檔，視台新提供方式）→ 比對帳號與金額 → 已付費
+      - 三竹簡訊：報名成功／繳費帳號／繳費收據（等拿到三竹 API 帳號再接）
+      - 報名確認信：寄件人「故事講堂 <service@storykids.com.tw>」；正取（含繳費帳號與期限）、候補（含候補順位）、繳費完成收據。
+        寄信服務建議 Brevo（免費每天 300 封）；需在 DNS 設定 SPF / DKIM
+      - /admin 報名管理：列表、篩選、改狀態（沿用舊系統 8 種狀態）、匯出 Excel、手動標記合庫轉帳／現金
+    blocked_by: [Q12, Q13, Q14, Q15]
 
 # -----------------------------------------------------------------------------
 # 已確定的決策
@@ -112,9 +124,12 @@ decisions:
     reason: 不需要資料庫；有完整版本紀錄可還原；官網不含任何個資。
   - id: D3
     topic: 內容後台（CMS）
-    choice: Pages CMS（託管版，設定檔 .pages.yml）
-    reason: 補習班人員以 Email 受邀即可編輯，不需 GitHub 帳號；只能改內容/媒體，改不到程式與設定；開源、內容不被綁定。
-    alternative: Sveltia CMS（需 GitHub 帳號 + Cloudflare Worker OAuth）
+    choice: Sveltia CMS（網頁 public/cms/，設定檔 public/cms/config.yml；GitHub 登入由本專案 Worker 處理 src/worker/cms-auth.ts）
+    reason: >
+      開源、不依賴第三方伺服器（只依賴 Cloudflare 與 GitHub）；介面支援繁體中文、富文字編輯器有工具列；內容不被綁定。
+      2026-10-02 由 Pages CMS 託管版改用：Pages CMS 登入 API 持續逾時（504），GitHub 上也有多筆 2026 年的錯誤回報，穩定性不足。
+    tradeoff: 每位編輯者需申請 GitHub 帳號並加為 repo 協作者（GitHub 可能要求開啟兩步驟驗證）
+    alternative: 內容管理做進自建 /admin（Email 驗證碼登入、單一後台），工作量較大
   - id: D4
     topic: 部署
     choice: Cloudflare Workers 靜態資源（連 GitHub，push 自動部署；設定檔 wrangler.jsonc）
@@ -138,8 +153,9 @@ decisions:
     reason: 避免開發者成為下一個不透明外包。
   - id: D8
     topic: 系統切分
-    choice: 官網（公開內容，Git）與報名系統（個資，獨立系統）完全分離，僅以「報名按鈕連結」相接
-    reason: 官網被入侵也無個資外洩；報名方案更換時官網不用改。
+    choice: 公開內容存 Git（/cms 編輯）；報名個資只存 Cloudflare D1，由同一個 Worker 的 /api、/admin 處理
+    reason: 靜態網頁不經過後端（流量免費、不受後端影響）；個資不進 Git；兩者以時段代號串接。
+    updated: 2026-10-02（原為「報名系統完全外部化」，改為自建）
   - id: D9
     topic: 流量統計
     choice: Cloudflare Web Analytics（免 cookie），如補習班需要可再加 GA4
@@ -186,6 +202,22 @@ open_questions:
   - id: Q11
     question: 能否提供較新、解析度較高的照片（首頁主視覺目前暫用 2016 年的發表會照片，寬僅 1000px）
     owner: 補習班
+  - id: Q12
+    question: 台新虛擬帳號規格書：編碼規則、檢查碼演算法、入帳通知方式（推送 or 對帳檔）、加密與回應格式
+    owner: 補習班 / 舊外包 / 台新
+    phase: phase2
+  - id: Q13
+    question: 三竹簡訊 API 帳號與規格
+    owner: 補習班
+    phase: phase2
+  - id: Q14
+    question: 台新、三竹是否要求固定 IP 白名單？（Cloudflare Workers 沒有固定出口 IP）
+    owner: 補習班 / 台新 / 三竹
+    phase: phase2
+  - id: Q15
+    question: service@storykids.com.tw 目前是否在使用（能否收信）？網域現有的 MX / SPF 紀錄為何？寄信服務帳號（建議 Brevo）
+    owner: 補習班 / 開發者
+    phase: phase2
 
 # -----------------------------------------------------------------------------
 # 任務
@@ -209,9 +241,8 @@ tasks:
     title: 共用元件：Header（含線上報名 CTA，手機版置底）、Footer、LINE 浮動按鈕
     status: done
   - id: T6
-    title: Pages CMS 設定（.pages.yml），欄位中文化並對照舊 CMS 結構
+    title: 內容後台設定（public/cms/config.yml，Sveltia CMS），欄位中文化並對照舊 CMS 結構
     status: done
-    notes: 需在 Pages CMS 實際連上 GitHub repo 後測試一輪（T8 之後）
   - id: T6a
     title: 圖片自動縮圖 GitHub Action（.github/workflows/optimize-images.yml）
     status: done
@@ -227,8 +258,9 @@ tasks:
     title: Cloudflare 部署（預覽網址給補習班確認）
     status: done
   - id: T8a
-    title: 連接 Pages CMS 並實測「後台存檔 → 網站自動更新」，再邀請補習班人員
+    title: 內容後台啟用：建立 GitHub OAuth App、設定 GITHUB_CLIENT_ID／GITHUB_CLIENT_SECRET、實測「後台存檔 → 網站自動更新」、邀請補習班人員為 repo 協作者
     status: todo
+    depends_on: [T13]
   - id: T9
     title: DNS 切換（遠振 → Cloudflare Nameserver），SSL 自動開通
     status: blocked
@@ -239,17 +271,43 @@ tasks:
     depends_on: [T6]
   - id: T11
     title: Phase 2 — 報名系統與金流方案評估
+    status: done
+    notes: 決定自建（Workers + D1），見 phases.phase2
+  - id: T12
+    title: 報名系統核心（測試模式）：上課時段欄位、剩餘名額、報名表、正取／候補、假虛擬帳號、通知紀錄、/admin 報名管理、匯出 CSV
+    status: done
+    notes: 本機測試通過（含 10 筆併發報名 2 個名額 → 2 正取 8 候補）
+  - id: T13
+    title: 建立正式 D1 資料庫並填入 wrangler.jsonc 的 database_id、套用 migration、設定後台登入（ADMIN_PASSWORD 或 Cloudflare Access）
+    status: todo
+    notes: ⚠️ 完成前不可 push（database_id 是假的，部署會失敗）
+  - id: T14
+    title: 串接台新虛擬帳號（編碼規則、入帳通知 /api/taishin/notify）
     status: blocked
-    depends_on: [Q5, Q6]
+    depends_on: [Q12, Q14]
+  - id: T15
+    title: 串接三竹簡訊
+    status: blocked
+    depends_on: [Q13, Q14]
+  - id: T16
+    title: 串接 Email 寄送（Brevo 等）並設定 DNS SPF／DKIM
+    status: blocked
+    depends_on: [Q15, T9]
+  - id: T17
+    title: 正式上線前移除「趣味說故事」的測試時段（test-wed、test-sat），改為實際時段
+    status: todo
+  - id: T18
+    title: README.md（架構、服務、部署、開發）
+    status: done
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
 # -----------------------------------------------------------------------------
 changelog:
   - date: 2026-10-02
-    note: 建立規格。確定 phase1 範圍（靜態官網 + Pages CMS），報名/金流延後至 phase2。
+    note: 建立規格。確定 phase1 範圍（靜態官網 + Git 內容後台），報名/金流延後至 phase2。
   - date: 2026-10-02
-    note: 完成 phase1 前台、舊站內容匯入、.pages.yml、_redirects、自動縮圖。色系改用舊站 Logo 的橘黃 + 酒紅。
+    note: 完成 phase1 前台、舊站內容匯入、內容後台設定、_redirects、自動縮圖。色系改用舊站 Logo 的橘黃 + 酒紅。
   - date: 2026-10-02
     note: >
       對齊舊站結構：主選單加入下拉子選單（關於講堂 4 項、課程介紹、上課須知 2 項，由內容自動產生）；
@@ -265,3 +323,13 @@ changelog:
       首頁改為舊站順序：消息輪播（勾選「顯示在首頁」的消息，新增 slide_image 輪播圖片欄位，匯入舊站 3 張橫幅）→
       標語與報名按鈕 → 課程介紹 → 幫孩子鼓掌（前 2 則）→ 關於講堂 → 聯絡我們 → Google 地圖。
       圖文列抽成 StoryRow 元件，首頁與幫孩子鼓掌頁共用。
+  - date: 2026-10-02
+    note: >
+      Phase 2 報名系統核心完成（測試模式）：Workers 後端（src/worker/）+ D1（migrations/0001_init.sql）、
+      課程上課時段欄位（內容後台）、課程頁即時剩餘名額、/register 報名頁、額滿自動候補且不產生帳號、
+      假虛擬帳號與模擬入帳、Email／簡訊通知只寫紀錄不寄出（含公司信箱通知）、/admin 報名管理（狀態、遞補、匯出 CSV、紀錄）、
+      後台登入（Cloudflare Access／暫時密碼／本機略過，未設定則拒絕）。新增 README.md。
+  - date: 2026-10-02
+    note: >
+      內容後台由 Pages CMS 託管版改為 Sveltia CMS（/cms），GitHub 登入內建於本專案 Worker（src/worker/cms-auth.ts），
+      移除 .pages.yml。原因：Pages CMS 登入 API 持續逾時、穩定性不足。

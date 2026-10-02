@@ -10,6 +10,20 @@ cover: /images/old/course/0a7046e32095907825614e7a6a43754c.jpg
 featured: true
 published: true
 order: 1
+# ⚠️ 測試用時段，正式上線前請在後台改成實際時段
+sessions:
+  - code: test-wed
+    name: 測試時段 A（週三班）
+    time: 每週三 16:00–17:40
+    capacity: 2
+    price: 11000
+    open: true
+  - code: test-sat
+    name: 測試時段 B（週六班）
+    time: 每週六 10:00–11:40
+    capacity: 1
+    price: 11000
+    open: true
 ---
 
 ![趣味說故事](/images/old/course/740c8409b91e4892bd106cb74175d076.jpg)

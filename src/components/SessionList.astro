@@ -1,0 +1,74 @@
+---
+// 課程頁的「上課時段」：名稱、時間、費用、剩餘名額（即時向後端查詢）與報名按鈕
+// 剩餘名額為 0 時仍可報名，會自動列為候補（不產生繳費帳號）
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  sessions: CollectionEntry<'courses'>['data']['sessions'];
+}
+const { sessions } = Astro.props;
+const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
+---
+
+<section id="sessions" class="scroll-mt-24">
+  <h2 class="section-title">上課時段與報名</h2>
+  <p class="mt-2 text-sm text-ink-500">名額有限，額滿後仍可報名並自動列為候補，如有名額釋出將主動通知。</p>
+  <ul class="mt-6 space-y-4">
+    {
+      sessions.map((s) => (
+        <li class="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:flex-row sm:items-center" data-session={s.code}>
+          <div class="flex-1">
+            <p class="text-lg font-bold text-ink-900">{s.name}</p>
+            {s.time && <p class="mt-1 text-ink-700">{s.time}</p>}
+            <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span class="font-bold text-brand-700">{money(s.price)}</span>
+              <span class="text-ink-500">名額 {s.capacity} 人</span>
+              <span class="font-bold" data-remaining>
+                <span class="text-ink-500">剩餘名額查詢中…</span>
+              </span>
+            </p>
+          </div>
+          {s.open ? (
+            <a href={`/register?session=${encodeURIComponent(s.code)}`} class="btn-primary shrink-0 px-6" data-register>
+              我要報名
+            </a>
+          ) : (
+            <span class="shrink-0 rounded-full bg-ink-900/5 px-5 py-2.5 text-center font-bold text-ink-500">暫停報名</span>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<script>
+  // 向後端查詢即時剩餘名額
+  async function loadAvailability() {
+    const items = document.querySelectorAll<HTMLElement>('[data-session]');
+    if (!items.length) return;
+    try {
+      const res = await fetch('/api/availability', { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as Record<string, { remaining: number; waitlist: number; open: boolean }>;
+      for (const el of items) {
+        const info = data[el.dataset.session!];
+        const target = el.querySelector('[data-remaining]')!;
+        const button = el.querySelector<HTMLAnchorElement>('[data-register]');
+        if (!info) {
+          target.innerHTML = '';
+          continue;
+        }
+        if (info.remaining > 0) {
+          target.innerHTML = `<span class="text-green-700">剩餘名額 ${info.remaining} 人</span>`;
+        } else {
+          target.innerHTML = `<span class="text-brand-600">已額滿${info.waitlist ? `（候補 ${info.waitlist} 人）` : ''}</span>`;
+          if (button) button.textContent = '登記候補';
+        }
+      }
+    } catch {
+      // 查詢失敗時不顯示名額，但仍可報名
+      document.querySelectorAll('[data-remaining]').forEach((el) => (el.innerHTML = ''));
+    }
+  }
+  loadAvailability();
+</script>

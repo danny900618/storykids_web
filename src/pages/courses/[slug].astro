@@ -4,8 +4,9 @@ import { render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
+import SessionList from '../../components/SessionList.astro';
 import { getCourses } from '../../lib/content';
-import { registrationHref, isExternal, excerpt } from '../../lib/site';
+import { courseRegistrationHref, isExternal, excerpt } from '../../lib/site';
 
 export const getStaticPaths = (async () => {
   const all = await getCourses();
@@ -13,9 +14,9 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths;
 
 const { course } = Astro.props;
-const { title, category, audience, schedule, class_size, price, summary, cover, registration_url } = course.data;
+const { title, category, audience, schedule, class_size, price, summary, cover, sessions } = course.data;
 const { Content } = await render(course);
-const regHref = registrationHref(registration_url);
+const regHref = courseRegistrationHref(course);
 
 // 課程資訊表：有填寫的欄位才顯示
 const facts = [
@@ -30,7 +31,13 @@ const facts = [
 <BaseLayout title={title} description={summary || excerpt(course.body, 120)} image={cover}>
   <PageHeader title={title} subtitle={summary} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
   <div class="container-page grid gap-10 py-12 lg:grid-cols-[1fr_320px]">
-    <article>
+    <article class="min-w-0">
+      <!-- 上課時段放在最前面，家長一進來就能看到並報名 -->
+      {sessions.length > 0 && (
+        <div class="mb-12">
+          <SessionList sessions={sessions} />
+        </div>
+      )}
       {cover && <img src={cover} alt="" class="mb-8 w-full rounded-2xl" />}
       <div class="prose-story">
         <Content />

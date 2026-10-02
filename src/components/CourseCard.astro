@@ -1,14 +1,14 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import Icon from './Icon.astro';
-import { registrationHref, isExternal } from '../lib/site';
+import { courseRegistrationHref, isExternal } from '../lib/site';
 
 interface Props {
   course: CollectionEntry<'courses'>;
 }
 const { course } = Astro.props;
-const { title, category, audience, summary, cover, registration_url } = course.data;
-const regHref = registrationHref(registration_url);
+const { title, category, audience, summary, cover } = course.data;
+const regHref = courseRegistrationHref(course);
 ---
 
 <article class="card flex flex-col">

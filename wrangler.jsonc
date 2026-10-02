@@ -1,13 +1,44 @@
-// Cloudflare Workers 部署設定（純靜態網站，只提供 dist/ 裡的檔案，沒有後端程式）
+// Cloudflare Workers 部署設定
+// - 網頁：dist/ 靜態檔案（Astro 建置）
+// - 後端：src/worker/index.ts，只處理 /api/* 與 /admin（報名、名額、報名管理後台）
 // name 必須與 Cloudflare 後台的 Worker 名稱一致
 {
   "name": "storykids-web",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // 找不到頁面時顯示 dist/404.html（並回傳 404 狀態碼）
     "not_found_handling": "404-page",
     // 網址不加結尾斜線：/about 直接顯示 about/index.html，/about/ 會轉到 /about
-    "html_handling": "drop-trailing-slash"
+    "html_handling": "drop-trailing-slash",
+    // 只有這些路徑會先經過後端程式，其餘都直接回傳靜態檔（不計入 Worker 請求額度）
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "storykids",
+      // 2026-10-02 建立於 Cloudflare 帳號 c0981985611@gmail.com（APAC 區域）
+      "database_id": "444de319-295a-49e1-b966-57f302f3717c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // 測試模式：mock = 不真的寄信／發簡訊、使用假虛擬帳號；正式串接後改為 live
+    "MAIL_MODE": "mock",
+    "SMS_MODE": "mock",
+    "PAYMENT_MODE": "mock",
+    "MAIL_FROM": "故事講堂 <service@storykids.com.tw>",
+    // 有人報名時通知的公司信箱
+    "COMPANY_EMAIL": "service@storykids.com.tw",
+    // 內容後台（/cms）的 GitHub 登入：填入 GitHub OAuth App 的 Client ID；Client secret 用 `wrangler secret put GITHUB_CLIENT_SECRET`
+    "GITHUB_CLIENT_ID": "Ov23liDuGhok8y2SHlCF",
+    // 允許使用內容後台登入的網址（本身網址一律允許）
+    "CMS_ALLOWED_ORIGINS": "https://storykids-web.c0981985611.workers.dev,https://storykids.com.tw,http://127.0.0.1:8787,http://localhost:8787"
+  },
+  "observability": {
+    "enabled": true
   }
 }

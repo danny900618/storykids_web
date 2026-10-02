@@ -14,3 +14,7 @@ node_modules/
 
 # 舊後台截圖等可能含個資的參考資料，不進版控
 docs/old-cms/
+
+# Cloudflare Workers 本機開發（.dev.vars 放本機用的密碼與設定，不可進版控）
+.dev.vars
+.wrangler/
