@@ -1,0 +1,22 @@
+---
+import type { GetStaticPaths } from 'astro';
+import NewsArchive, { PAGE_SIZE } from '../../../components/NewsArchive.astro';
+import { getNews } from '../../../lib/content';
+
+export const getStaticPaths = (async () => {
+  const all = await getNews();
+  const totalPages = Math.ceil(all.length / PAGE_SIZE);
+  // 第 1 頁由 /news 提供，這裡只產生第 2 頁之後
+  return Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => {
+    const page = i + 2;
+    return {
+      params: { page: String(page) },
+      props: { items: all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), page, totalPages },
+    };
+  });
+}) satisfies GetStaticPaths;
+
+const { items, page, totalPages } = Astro.props;
+---
+
+<NewsArchive items={items} page={page} totalPages={totalPages} />

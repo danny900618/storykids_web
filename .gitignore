@@ -1,0 +1,16 @@
+# 建置產物
+dist/
+.astro/
+
+# 套件
+node_modules/
+
+# 環境變數
+.env
+.env.*
+
+# 系統檔
+.DS_Store
+
+# 舊後台截圖等可能含個資的參考資料，不進版控
+docs/old-cms/

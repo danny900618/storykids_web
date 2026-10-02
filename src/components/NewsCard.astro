@@ -1,0 +1,21 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { formatDate, excerpt } from '../lib/site';
+
+interface Props {
+  item: CollectionEntry<'news'>;
+}
+const { item } = Astro.props;
+const summary = item.data.summary || excerpt(item.body);
+---
+
+<a href={`/news/${item.id}`} class="card flex flex-col">
+  {item.data.cover && <img src={item.data.cover} alt="" loading="lazy" class="aspect-[16/9] w-full object-cover" />}
+  <div class="flex flex-1 flex-col p-5">
+    <time datetime={item.data.date.toISOString()} class="text-sm font-medium text-brand-700">
+      {formatDate(item.data.date)}
+    </time>
+    <h3 class="mt-2 line-clamp-2 text-lg font-bold text-ink-900">{item.data.title}</h3>
+    {summary && <p class="mt-2 line-clamp-3 text-sm text-ink-500">{summary}</p>}
+  </div>
+</a>

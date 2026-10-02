@@ -1,0 +1,48 @@
+---
+// 全站共用版型：SEO meta、Header、Footer、快速聯絡按鈕
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import ContactActions from '../components/ContactActions.astro';
+import { site } from '../lib/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+const { title, description = site.description, image } = Astro.props;
+
+const fullTitle = title ? `${title}｜${site.name}` : `${site.name}｜${site.slogan}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = image || site.logo;
+---
+
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <!-- 社群分享預覽（Facebook / LINE） -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {ogImage && <meta property="og:image" content={new URL(ogImage, Astro.site)} />}
+  </head>
+  <body class="flex min-h-screen flex-col pb-20 lg:pb-0">
+    <Header />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+    <ContactActions />
+  </body>
+</html>

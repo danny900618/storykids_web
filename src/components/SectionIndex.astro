@@ -1,0 +1,37 @@
+---
+// 「關於講堂」「上課須知」的目錄頁：列出該分類所有頁面
+// 目錄卡片統一不放圖片，避免有的有圖、有的沒有，版面不一致
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from './PageHeader.astro';
+import Icon from './Icon.astro';
+import { getPages } from '../lib/content';
+import { excerpt } from '../lib/site';
+
+interface Props {
+  section: 'about' | 'info';
+  title: string;
+  subtitle: string;
+}
+const { section, title, subtitle } = Astro.props;
+const pages = await getPages(section);
+---
+
+<BaseLayout title={title}>
+  <PageHeader title={title} subtitle={subtitle} crumbs={[{ label: title, href: `/${section}` }]} />
+  <div class="container-page grid gap-6 py-12 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      pages.map((p) => (
+        <a href={`/${section}/${p.id}`} class="card flex flex-col">
+          <div class="flex flex-1 flex-col p-6">
+            <h2 class="text-xl font-bold">{p.data.title}</h2>
+            <p class="mt-2 line-clamp-3 flex-1 text-sm text-ink-500">{p.data.description || excerpt(p.body)}</p>
+            <span class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-brand-700">
+              閱讀更多 <Icon name="arrow" class="size-4" />
+            </span>
+          </div>
+        </a>
+      ))
+    }
+    {pages.length === 0 && <p class="text-ink-500">內容整理中。</p>}
+  </div>
+</BaseLayout>

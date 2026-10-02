@@ -1,0 +1,61 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import Icon from '../../components/Icon.astro';
+import { getCourses } from '../../lib/content';
+import { registrationHref, isExternal, excerpt } from '../../lib/site';
+
+export const getStaticPaths = (async () => {
+  const all = await getCourses();
+  return all.map((course) => ({ params: { slug: course.id }, props: { course } }));
+}) satisfies GetStaticPaths;
+
+const { course } = Astro.props;
+const { title, category, audience, schedule, class_size, price, summary, cover, registration_url } = course.data;
+const { Content } = await render(course);
+const regHref = registrationHref(registration_url);
+
+// 課程資訊表：有填寫的欄位才顯示
+const facts = [
+  { label: '班別', value: category },
+  { label: '適合對象', value: audience },
+  { label: '上課時間', value: schedule },
+  { label: '班級人數', value: class_size },
+  { label: '費用', value: price },
+].filter((f) => f.value);
+---
+
+<BaseLayout title={title} description={summary || excerpt(course.body, 120)} image={cover}>
+  <PageHeader title={title} subtitle={summary} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+  <div class="container-page grid gap-10 py-12 lg:grid-cols-[1fr_320px]">
+    <article>
+      {cover && <img src={cover} alt="" class="mb-8 w-full rounded-2xl" />}
+      <div class="prose-story">
+        <Content />
+      </div>
+    </article>
+
+    <!-- 側欄：課程資訊 + 報名 -->
+    <aside class="lg:sticky lg:top-24 lg:self-start">
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+        <dl class="space-y-4">
+          {
+            facts.map((f) => (
+              <div>
+                <dt class="text-sm font-bold text-ink-500">{f.label}</dt>
+                <dd class="mt-1 whitespace-pre-line text-ink-900">{f.value}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <a href={regHref} class="btn-primary mt-6 w-full py-3 text-lg" {...(isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {})}>
+          <Icon name="pencil" class="size-5" />
+          立即報名
+        </a>
+        <a href="/info" class="mt-3 block text-center text-sm text-brand-700 hover:underline">上課須知與繳費說明</a>
+      </div>
+    </aside>
+  </div>
+</BaseLayout>

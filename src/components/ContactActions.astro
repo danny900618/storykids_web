@@ -1,0 +1,49 @@
+---
+// 快速聯絡/報名：
+// - 手機版：固定在畫面底部的操作列（電話、LINE、線上報名）
+// - 桌機版：右下角 LINE 漂浮按鈕（報名按鈕已在 Header 右上角）
+import Icon from './Icon.astro';
+import { site, registrationHref, isExternal, telHref } from '../lib/site';
+
+const regHref = registrationHref();
+const external = isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {};
+---
+
+<!-- 手機版底部操作列 -->
+<div
+  class="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-black/5 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+>
+  {
+    site.phone && (
+      <a href={telHref(site.phone)} class="grid size-12 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700" aria-label="撥打電話">
+        <Icon name="phone" class="size-6" />
+      </a>
+    )
+  }
+  {
+    site.line_url && (
+      <a href={site.line_url} target="_blank" rel="noopener" class="grid size-12 shrink-0 place-items-center rounded-full bg-line text-white" aria-label="加入 LINE 官方帳號">
+        <Icon name="line" class="size-7" />
+      </a>
+    )
+  }
+  <a href={regHref} class="btn-primary flex-1 text-lg" {...external}>
+    <Icon name="pencil" class="size-5" />
+    {site.registration_label}
+  </a>
+</div>
+
+<!-- 桌機版 LINE 漂浮按鈕 -->
+{
+  site.line_url && (
+    <a
+      href={site.line_url}
+      target="_blank"
+      rel="noopener"
+      class="fixed right-6 bottom-6 z-40 hidden items-center gap-2 rounded-full bg-line px-5 py-3 font-bold text-white shadow-lg transition hover:scale-105 lg:inline-flex"
+    >
+      <Icon name="line" class="size-6" />
+      LINE 諮詢
+    </a>
+  )
+}

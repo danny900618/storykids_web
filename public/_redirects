@@ -1,0 +1,20 @@
+# 舊站（PHP）網址 → 新站網址，301 永久轉址，保留 Google 搜尋排名
+# 注意：Cloudflare Pages 的 _redirects 無法比對 ?id= 等查詢參數，
+# 所以 news_view.php?id=51 這類網址統一轉到列表頁。
+
+/index.php                    /                       301
+/about_storykids.php          /about/philosophy       301
+/about_origin.php             /about/origin           301
+/about_teachers.php           /about/teachers         301
+/about_environment.php        /about/environment      301
+/news.php                     /news                   301
+/news_view.php                /news                   301
+/course.php                   /courses                301
+/course_view.php              /courses                301
+/notice_course.php            /info/course-notice     301
+/notice_course_view.php       /info/course-notice     301
+/notice_price.php             /info/payment           301
+/applaud.php                  /gallery                301
+/applaud_view.php             /gallery                301
+/contact.php                  /contact                301
+/files.php                    /info/course-notice     301

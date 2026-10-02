@@ -1,0 +1,86 @@
+---
+// 頁尾：聯絡資訊（資料來自網站設定，欄位留空則不顯示）
+import Icon from './Icon.astro';
+import { site, navItems, telHref } from '../lib/site';
+
+const year = new Date().getFullYear();
+const mapHref = site.map_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.address)}`;
+---
+
+<footer class="mt-16 bg-ink-900 text-white/80">
+  <div class="container-page grid gap-10 py-12 md:grid-cols-3">
+    <div>
+      <p class="text-xl font-bold text-white">{site.name}</p>
+      <p class="mt-1 text-sm">{site.full_name}</p>
+      {site.slogan && <p class="mt-4 text-sm leading-relaxed">{site.slogan}</p>}
+    </div>
+
+    <ul class="space-y-3 text-sm">
+      <li>
+        <a href={mapHref} target="_blank" rel="noopener" class="flex gap-3 hover:text-white">
+          <Icon name="map" class="mt-0.5 size-5 shrink-0" />
+          <span>
+            {site.address}
+            {site.address_note && <span class="block text-white/60">（{site.address_note}）</span>}
+          </span>
+        </a>
+      </li>
+      {
+        site.phone && (
+          <li>
+            <a href={telHref(site.phone)} class="flex gap-3 hover:text-white">
+              <Icon name="phone" class="size-5 shrink-0" />
+              {site.phone}
+            </a>
+          </li>
+        )
+      }
+      {
+        site.hours && (
+          <li class="flex gap-3">
+            <Icon name="clock" class="mt-0.5 size-5 shrink-0" />
+            <span class="whitespace-pre-line">{site.hours}</span>
+          </li>
+        )
+      }
+      {
+        site.email && (
+          <li>
+            <a href={`mailto:${site.email}`} class="flex gap-3 hover:text-white">
+              <Icon name="mail" class="size-5 shrink-0" />
+              {site.email}
+            </a>
+          </li>
+        )
+      }
+    </ul>
+
+    <div class="space-y-4">
+      <nav aria-label="頁尾選單">
+        <ul class="grid grid-cols-2 gap-2 text-sm">
+          {navItems.map((item) => <li><a href={item.href} class="hover:text-white">{item.label}</a></li>)}
+        </ul>
+      </nav>
+      <div class="flex gap-3">
+        {
+          site.line_url && (
+            <a href={site.line_url} target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full bg-line px-4 py-2 text-sm font-bold text-white">
+              <Icon name="line" class="size-5" />
+              加入 LINE 好友
+            </a>
+          )
+        }
+        {
+          site.facebook_url && (
+            <a href={site.facebook_url} target="_blank" rel="noopener" class="grid size-9 place-items-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Facebook">
+              <Icon name="facebook" class="size-5" />
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </div>
+  <p class="border-t border-white/10 py-5 text-center text-xs text-white/50">
+    © {year} {site.full_name}
+  </p>
+</footer>

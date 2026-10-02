@@ -1,0 +1,159 @@
+---
+// 頁首導覽列：桌機版右上角固定「線上報名」，手機版改用漢堡選單 + 底部報名列
+// 「關於講堂」「課程介紹」「上課須知」有下拉子選單，內容由後台資料自動產生
+import Icon from './Icon.astro';
+import { site, registrationHref, isExternal } from '../lib/site';
+import { getNav } from '../lib/nav';
+
+const nav = await getNav();
+const current = Astro.url.pathname.replace(/\/$/, '') || '/';
+const isActive = (href: string) => current === href || current.startsWith(`${href}/`);
+const regHref = registrationHref();
+---
+
+<header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur">
+  <div class="container-page flex h-16 items-center justify-between gap-4">
+    <!-- 品牌 Logo：網站設定有上傳 Logo 就顯示圖片，否則顯示文字 -->
+    <a href="/" class="flex items-center gap-2 font-bold text-ink-900">
+      {
+        site.logo ? (
+          <img src={site.logo} alt={site.name} class="h-11 w-auto rounded-md" />
+        ) : (
+          <>
+            <span class="grid size-10 place-items-center rounded-full bg-brand-500 text-lg text-brand-700">故</span>
+            <span class="text-lg sm:text-xl">{site.name}</span>
+          </>
+        )
+      }
+    </a>
+
+    <!-- 桌機版選單：滑鼠移入或鍵盤 Tab 聚焦時展開子選單 -->
+    <nav class="hidden items-center gap-1 lg:flex" aria-label="主選單">
+      <ul class="flex items-center gap-1">
+        {
+          nav.map((item) => (
+            <li class="group relative">
+              <a
+                href={item.href}
+                class:list={[
+                  'inline-flex items-center gap-1 rounded-full px-3 py-2 font-medium transition hover:bg-brand-50 hover:text-brand-700',
+                  isActive(item.href) ? 'text-brand-700' : 'text-ink-700',
+                ]}
+                aria-current={current === item.href ? 'page' : undefined}
+                aria-haspopup={item.children ? 'true' : undefined}
+              >
+                {item.label}
+                {item.children && <Icon name="chevron" class="size-3.5 transition group-hover:rotate-180" />}
+              </a>
+              {item.children && (
+                <div class="invisible absolute top-full left-1/2 z-50 -translate-x-1/2 pt-2 opacity-0 transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                  <ul class="min-w-44 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-black/5">
+                    {item.children.map((child) => (
+                      <li>
+                        <a
+                          href={child.href}
+                          class:list={[
+                            'block rounded-lg px-4 py-2.5 whitespace-nowrap hover:bg-brand-50 hover:text-brand-700',
+                            current === child.href ? 'bg-brand-50 font-bold text-brand-700' : 'text-ink-700',
+                          ]}
+                          aria-current={current === child.href ? 'page' : undefined}
+                        >
+                          {child.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+      <a href={regHref} class="btn-primary ml-2" {...(isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {})}>
+        <Icon name="pencil" class="size-4" />
+        {site.registration_label}
+      </a>
+    </nav>
+
+    <!-- 手機版選單按鈕 -->
+    <button
+      type="button"
+      class="grid size-10 place-items-center rounded-full text-ink-700 hover:bg-brand-50 lg:hidden"
+      aria-controls="mobile-menu"
+      aria-expanded="false"
+      aria-label="開啟選單"
+      data-menu-toggle
+    >
+      <Icon name="menu" class="size-6" />
+    </button>
+  </div>
+
+  <!-- 手機版展開選單：有子選單的項目用摺疊（details）呈現 -->
+  <nav id="mobile-menu" class="hidden max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-black/5 bg-white lg:hidden" aria-label="手機選單">
+    <ul class="container-page py-2">
+      {
+        nav.map((item) =>
+          item.children ? (
+            <li>
+              <details class="group" open={isActive(item.href)}>
+                <summary
+                  class:list={[
+                    'flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 font-medium',
+                    isActive(item.href) ? 'text-brand-700' : 'text-ink-700',
+                  ]}
+                >
+                  {item.label}
+                  <Icon name="chevron" class="size-4 transition group-open:rotate-180" />
+                </summary>
+                <ul class="mb-2 ml-3 border-l-2 border-brand-100 pl-3">
+                  <li>
+                    <a href={item.href} class="block rounded-lg px-3 py-2.5 text-ink-500">
+                      {item.label}總覽
+                    </a>
+                  </li>
+                  {item.children.map((child) => (
+                    <li>
+                      <a
+                        href={child.href}
+                        class:list={[
+                          'block rounded-lg px-3 py-2.5',
+                          current === child.href ? 'bg-brand-50 font-bold text-brand-700' : 'text-ink-700',
+                        ]}
+                      >
+                        {child.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </li>
+          ) : (
+            <li>
+              <a
+                href={item.href}
+                class:list={[
+                  'block rounded-lg px-3 py-3 font-medium',
+                  isActive(item.href) ? 'bg-brand-50 text-brand-700' : 'text-ink-700',
+                ]}
+              >
+                {item.label}
+              </a>
+            </li>
+          ),
+        )
+      }
+    </ul>
+  </nav>
+</header>
+
+<script>
+  // 手機選單開關
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const menu = document.getElementById('mobile-menu');
+  toggle?.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!open));
+    toggle.setAttribute('aria-label', open ? '開啟選單' : '關閉選單');
+    menu?.classList.toggle('hidden', open);
+  });
+</script>

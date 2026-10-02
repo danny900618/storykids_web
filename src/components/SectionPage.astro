@@ -1,0 +1,50 @@
+---
+// 「關於講堂」「上課須知」的內頁：左側為同分類頁面選單，右側為內文
+import type { CollectionEntry } from 'astro:content';
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from './PageHeader.astro';
+import { getPages } from '../lib/content';
+import { excerpt } from '../lib/site';
+
+interface Props {
+  page: CollectionEntry<'pages'>;
+  sectionTitle: string;
+}
+const { page, sectionTitle } = Astro.props;
+const section = page.data.section;
+const siblings = await getPages(section);
+const { Content } = await render(page);
+---
+
+<BaseLayout title={page.data.title} description={page.data.description || excerpt(page.body, 120)} image={page.data.cover}>
+  <PageHeader title={page.data.title} crumbs={[{ label: sectionTitle, href: `/${section}` }]} />
+  <div class="container-page grid gap-10 py-12 lg:grid-cols-[220px_1fr]">
+    <nav aria-label={sectionTitle} class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+      <ul class="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible">
+        {
+          siblings.map((p) => (
+            <li class="shrink-0">
+              <a
+                href={`/${section}/${p.id}`}
+                class:list={[
+                  'block rounded-lg px-4 py-2.5 font-medium whitespace-nowrap',
+                  p.id === page.id ? 'bg-brand-600 text-white' : 'bg-white text-ink-700 ring-1 ring-black/5 hover:text-brand-700',
+                ]}
+                aria-current={p.id === page.id ? 'page' : undefined}
+              >
+                {p.data.title}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <!-- 封面圖只用於列表卡片與首頁，內頁不重複顯示 -->
+    <article class="min-w-0">
+      <div class="prose-story">
+        <Content />
+      </div>
+    </article>
+  </div>
+</BaseLayout>

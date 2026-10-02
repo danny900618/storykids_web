@@ -1,0 +1,79 @@
+---
+// 幫孩子鼓掌：沿用舊站版型
+// - 最上方：只有影片、沒有照片的項目直接嵌入播放
+// - 其餘：一半圖片、一半文字（標題、副標題、簡短描述、more），左右交錯排列
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import Icon from '../../components/Icon.astro';
+import { getGallery } from '../../lib/content';
+import { formatDate, youtubeId, excerpt } from '../../lib/site';
+
+const all = await getGallery();
+const isVideoOnly = (a: (typeof all)[number]) => !!youtubeId(a.data.youtube) && a.data.images.length === 0 && !a.data.cover;
+const videos = all.filter(isVideoOnly);
+const stories = all.filter((a) => !isVideoOnly(a));
+
+// 封面：優先使用封面圖 → 第一張照片 → YouTube 縮圖
+const coverOf = (a: (typeof all)[number]) => {
+  const id = youtubeId(a.data.youtube);
+  return a.data.cover || a.data.images[0] || (id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined);
+};
+---
+
+<BaseLayout title="幫孩子鼓掌">
+  <PageHeader title="幫孩子鼓掌" subtitle="記錄孩子在講堂的每一次勇敢上台" crumbs={[{ label: '幫孩子鼓掌', href: '/gallery' }]} />
+
+  {
+    videos.length > 0 && (
+      <section class="container-page max-w-4xl pt-12">
+        {videos.map((v) => (
+          <div class="mb-6 aspect-video overflow-hidden rounded-2xl bg-black shadow-sm">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId(v.data.youtube)}?rel=0`}
+              title={v.data.title}
+              class="size-full"
+              loading="lazy"
+              allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            />
+          </div>
+        ))}
+      </section>
+    )
+  }
+
+  <section class="container-page max-w-5xl space-y-8 py-12">
+    {
+      stories.map((a, i) => {
+        const cover = coverOf(a);
+        const href = `/gallery/${a.id}`;
+        const summary = a.data.summary || excerpt(a.body, 90);
+        return (
+          <article class="grid overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5 md:grid-cols-2">
+            <a href={href} class:list={['block bg-brand-100', i % 2 === 1 && 'md:order-2']}>
+              {cover ? (
+                <img src={cover} alt={a.data.title} loading="lazy" class="aspect-[4/3] size-full object-cover transition hover:scale-[1.02]" />
+              ) : (
+                <div class="aspect-[4/3]" />
+              )}
+            </a>
+            <div class="flex flex-col justify-center p-6 sm:p-8">
+              {a.data.subtitle && (
+                <p class="inline-flex w-fit rounded-full bg-brand-100 px-3 py-1 text-sm font-bold text-brand-700">{a.data.subtitle}</p>
+              )}
+              <h2 class="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
+                <a href={href} class="hover:text-brand-700">{a.data.title}</a>
+              </h2>
+              {a.data.date && <p class="mt-1 text-sm text-ink-500">{formatDate(a.data.date)}</p>}
+              {summary && <p class="mt-3 leading-relaxed text-ink-700">{summary}</p>}
+              <a href={href} class="mt-5 inline-flex w-fit items-center gap-1 font-bold text-brand-700 hover:underline">
+                more <Icon name="arrow" class="size-4" />
+              </a>
+            </div>
+          </article>
+        );
+      })
+    }
+    {all.length === 0 && <p class="text-ink-500">內容整理中。</p>}
+  </section>
+</BaseLayout>

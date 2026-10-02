@@ -1,0 +1,151 @@
+---
+// 首頁：主視覺 → 關於講堂 → 最新消息 → 課程介紹 → 聯絡我們
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NewsCard from '../components/NewsCard.astro';
+import CourseCard from '../components/CourseCard.astro';
+import Icon from '../components/Icon.astro';
+import { site, registrationHref, isExternal, excerpt } from '../lib/site';
+import { getNews, getCourses, getPages } from '../lib/content';
+
+const allNews = await getNews();
+// 有勾選「顯示在首頁」的消息優先；若都沒勾，就顯示最新 3 則
+const featuredNews = allNews.filter((n) => n.data.featured);
+const homeNews = (featuredNews.length ? featuredNews : allNews).slice(0, 3);
+
+const allCourses = await getCourses();
+const featuredCourses = allCourses.filter((c) => c.data.featured);
+const homeCourses = (featuredCourses.length ? featuredCourses : allCourses).slice(0, 6);
+
+const aboutPages = await getPages('about');
+const aboutIntro = aboutPages[0];
+
+const regHref = registrationHref();
+const external = isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {};
+---
+
+<BaseLayout>
+  <!-- 主視覺 -->
+  <section class="relative overflow-hidden bg-gradient-to-br from-brand-50 via-cream to-brand-100">
+    <div class="container-page grid items-center gap-10 py-14 sm:py-20 lg:grid-cols-2">
+      <div>
+        <p class="inline-block rounded-full bg-white px-4 py-1 text-sm font-bold text-brand-700 shadow-sm">
+          {site.address_note || site.address}
+        </p>
+        <h1 class="mt-5 text-4xl leading-tight font-bold text-ink-900 sm:text-5xl">{site.name}</h1>
+        <p class="mt-4 text-xl leading-relaxed text-ink-700 sm:text-2xl">{site.slogan}</p>
+        <p class="mt-4 max-w-xl text-ink-500">{site.description}</p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a href={regHref} class="btn-primary px-7 py-3 text-lg" {...external}>
+            <Icon name="pencil" class="size-5" />
+            {site.registration_label}
+          </a>
+          <a href="/courses" class="btn-outline px-7 py-3 text-lg">看課程介紹</a>
+        </div>
+      </div>
+      <div class="relative">
+        {
+          site.hero_image ? (
+            <img src={site.hero_image} alt={`${site.name}上課情形`} class="aspect-[4/3] w-full rounded-3xl object-cover shadow-xl" fetchpriority="high" />
+          ) : (
+            <div class="grid aspect-[4/3] w-full place-items-center rounded-3xl bg-white/70 text-ink-500 shadow-xl ring-1 ring-black/5">
+              主視覺圖片（請於後台「網站設定」上傳）
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- 關於講堂 -->
+  {
+    aboutIntro && (
+      <section class="container-page py-16">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+          {aboutIntro.data.cover && (
+            <img src={aboutIntro.data.cover} alt="" loading="lazy" class="aspect-[4/3] w-full rounded-3xl object-cover" />
+          )}
+          <div class:list={[!aboutIntro.data.cover && 'lg:col-span-2 lg:max-w-3xl']}>
+            <p class="font-bold text-brand-700">關於講堂</p>
+            <h2 class="section-title mt-2">{aboutIntro.data.title}</h2>
+            <p class="mt-4 leading-relaxed text-ink-700">
+              {aboutIntro.data.description || excerpt(aboutIntro.body, 160)}
+            </p>
+            <ul class="mt-6 flex flex-wrap gap-2">
+              {aboutPages.map((p) => (
+                <li>
+                  <a href={`/about/${p.id}`} class="inline-block rounded-full bg-white px-4 py-2 text-sm font-medium text-ink-700 ring-1 ring-black/10 hover:text-brand-700 hover:ring-brand-500">
+                    {p.data.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- 最新消息 -->
+  <section class="bg-white py-16">
+    <div class="container-page">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <p class="font-bold text-brand-700">News</p>
+          <h2 class="section-title mt-1">最新消息</h2>
+        </div>
+        <a href="/news" class="inline-flex items-center gap-1 font-bold text-brand-700 hover:underline">
+          全部消息 <Icon name="arrow" class="size-4" />
+        </a>
+      </div>
+      {
+        homeNews.length ? (
+          <div class="mt-8 grid gap-6 md:grid-cols-3">
+            {homeNews.map((item) => <NewsCard item={item} />)}
+          </div>
+        ) : (
+          <p class="mt-8 text-ink-500">目前沒有消息。</p>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- 課程介紹 -->
+  <section class="container-page py-16">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <p class="font-bold text-brand-700">Courses</p>
+        <h2 class="section-title mt-1">課程介紹</h2>
+      </div>
+      <a href="/courses" class="inline-flex items-center gap-1 font-bold text-brand-700 hover:underline">
+        全部課程 <Icon name="arrow" class="size-4" />
+      </a>
+    </div>
+    {
+      homeCourses.length ? (
+        <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {homeCourses.map((course) => <CourseCard course={course} />)}
+        </div>
+      ) : (
+        <p class="mt-8 text-ink-500">課程資訊整理中。</p>
+      )
+    }
+  </section>
+
+  <!-- 聯絡我們 -->
+  <section class="container-page pb-4">
+    <div class="rounded-3xl bg-brand-600 px-6 py-10 text-center text-white sm:px-12">
+      <h2 class="text-2xl font-bold sm:text-3xl">想了解適合孩子的課程嗎？</h2>
+      <p class="mt-3 text-white/90">歡迎來電或加入 LINE 官方帳號，我們很樂意為您說明。</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a href="/contact" class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-brand-700 hover:bg-brand-50">聯絡資訊</a>
+        {
+          site.line_url && (
+            <a href={site.line_url} target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full bg-line px-6 py-3 font-bold text-white">
+              <Icon name="line" class="size-5" /> 加入 LINE
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,14 @@
+---
+import type { GetStaticPaths } from 'astro';
+import SectionPage from '../../components/SectionPage.astro';
+import { getPages } from '../../lib/content';
+
+export const getStaticPaths = (async () => {
+  const pages = await getPages('info');
+  return pages.map((page) => ({ params: { slug: page.id }, props: { page } }));
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+---
+
+<SectionPage page={page} sectionTitle="上課須知" />

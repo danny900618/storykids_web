@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import CourseCard from '../../components/CourseCard.astro';
+import { getCourses } from '../../lib/content';
+
+const courses = await getCourses();
+// 依「班別」分組，保留課程排序後第一次出現的班別順序
+const groups = new Map<string, typeof courses>();
+for (const c of courses) {
+  const list = groups.get(c.data.category) ?? [];
+  list.push(c);
+  groups.set(c.data.category, list);
+}
+---
+
+<BaseLayout title="課程介紹">
+  <PageHeader title="課程介紹" subtitle="依孩子的年齡與需求，選擇適合的班別" crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+  <div class="container-page space-y-14 py-12">
+    {
+      [...groups].map(([category, list]) => (
+        <section>
+          <h2 class="section-title">{category}</h2>
+          <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((course) => <CourseCard course={course} />)}
+          </div>
+        </section>
+      ))
+    }
+    {courses.length === 0 && <p class="text-ink-500">課程資訊整理中。</p>}
+  </div>
+</BaseLayout>

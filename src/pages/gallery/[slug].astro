@@ -1,0 +1,64 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import { getGallery } from '../../lib/content';
+import { formatDate, youtubeId } from '../../lib/site';
+
+export const getStaticPaths = (async () => {
+  const all = await getGallery();
+  return all.map((album) => ({ params: { slug: album.id }, props: { album } }));
+}) satisfies GetStaticPaths;
+
+const { album } = Astro.props;
+const { Content } = await render(album);
+const videoId = youtubeId(album.data.youtube);
+---
+
+<BaseLayout title={album.data.title} image={album.data.cover || album.data.images[0]}>
+  <PageHeader
+    title={album.data.title}
+    subtitle={[album.data.subtitle, album.data.date && formatDate(album.data.date)].filter(Boolean).join(' · ')}
+    crumbs={[{ label: '幫孩子鼓掌', href: '/gallery' }]}
+  />
+  {
+    album.data.cover && album.data.images.length === 0 && !videoId && (
+      <div class="container-page mt-8 max-w-3xl">
+        <img src={album.data.cover} alt="" class="w-full rounded-2xl" />
+      </div>
+    )
+  }
+  <div class="container-page py-12">
+    {
+      videoId && (
+        <div class="mx-auto aspect-video max-w-4xl overflow-hidden rounded-2xl bg-black">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+            title={album.data.title}
+            class="size-full"
+            loading="lazy"
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          />
+        </div>
+      )
+    }
+    <div class="prose-story mx-auto mt-8 max-w-3xl">
+      <Content />
+    </div>
+    {
+      album.data.images.length > 0 && (
+        <ul class="mt-10 columns-2 gap-4 md:columns-3">
+          {album.data.images.map((src) => (
+            <li class="mb-4 break-inside-avoid">
+              <a href={src} target="_blank" rel="noopener">
+                <img src={src} alt="" loading="lazy" class="w-full rounded-xl" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -1,0 +1,9 @@
+---
+import NewsArchive, { PAGE_SIZE } from '../../components/NewsArchive.astro';
+import { getNews } from '../../lib/content';
+
+const all = await getNews();
+const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+---
+
+<NewsArchive items={all.slice(0, PAGE_SIZE)} page={1} totalPages={totalPages} />

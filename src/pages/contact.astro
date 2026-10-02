@@ -1,0 +1,68 @@
+---
+// 聯絡我們：地址、電話、營業時間、LINE、地圖（皆讀取網站設定）
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Icon from '../components/Icon.astro';
+import { site, telHref } from '../lib/site';
+
+const mapQuery = encodeURIComponent(`${site.full_name} ${site.address}`);
+const mapHref = site.map_url || `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+---
+
+<BaseLayout title="聯絡我們">
+  <PageHeader title="聯絡我們" subtitle="歡迎來電、加入 LINE 或親自到講堂參觀" crumbs={[{ label: '聯絡我們', href: '/contact' }]} />
+  <div class="container-page grid gap-8 py-12 lg:grid-cols-2">
+    <ul class="space-y-4">
+      <li class="flex gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+        <Icon name="map" class="size-6 shrink-0 text-brand-600" />
+        <div>
+          <p class="font-bold">地址</p>
+          <p class="mt-1 text-ink-700">{site.address}{site.address_note && `（${site.address_note}）`}</p>
+          <a href={mapHref} target="_blank" rel="noopener" class="mt-1 inline-block text-sm text-brand-700 hover:underline">在 Google 地圖開啟</a>
+        </div>
+      </li>
+      {
+        site.phone && (
+          <li class="flex gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+            <Icon name="phone" class="size-6 shrink-0 text-brand-600" />
+            <div>
+              <p class="font-bold">電話</p>
+              <a href={telHref(site.phone)} class="mt-1 block text-ink-700 hover:text-brand-700">{site.phone}</a>
+            </div>
+          </li>
+        )
+      }
+      {
+        site.hours && (
+          <li class="flex gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+            <Icon name="clock" class="size-6 shrink-0 text-brand-600" />
+            <div>
+              <p class="font-bold">服務時間</p>
+              <p class="mt-1 whitespace-pre-line text-ink-700">{site.hours}</p>
+            </div>
+          </li>
+        )
+      }
+      {
+        site.line_url && (
+          <li class="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+            <Icon name="line" class="size-7 shrink-0 text-line" />
+            <div class="flex-1">
+              <p class="font-bold">LINE 官方帳號</p>
+              <p class="mt-1 text-sm text-ink-500">課程諮詢、繳費對帳都可以透過 LINE 聯繫</p>
+            </div>
+            <a href={site.line_url} target="_blank" rel="noopener" class="rounded-full bg-line px-4 py-2 text-sm font-bold text-white">加入好友</a>
+          </li>
+        )
+      }
+    </ul>
+    <!-- Google 地圖嵌入（不需 API Key） -->
+    <iframe
+      title="故事講堂位置地圖"
+      src={`https://maps.google.com/maps?q=${mapQuery}&output=embed`}
+      class="aspect-square w-full rounded-2xl border-0 shadow-sm lg:aspect-auto lg:h-full lg:min-h-96"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+  </div>
+</BaseLayout>

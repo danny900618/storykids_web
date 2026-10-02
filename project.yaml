@@ -1,0 +1,249 @@
+# =============================================================================
+# 故事講堂 storykids.com.tw 官網改版 — 專案規格（Single Source of Truth）
+# -----------------------------------------------------------------------------
+# 給人與 AI 讀：每次開工前先讀這份。決策改變時請更新 decisions / tasks，
+# 並在 changelog 記一筆。
+# =============================================================================
+
+project:
+  name: storykids-web
+  client: 台中市私立故事講堂國語藝術短期補習班（故事講堂）
+  developer_role: 協助開發；上線後日常內容由補習班人員透過 CMS 後台自行更新
+  goal: >
+    以零主機、零資料庫、低維護的架構取代 10 年前外包的 PHP 網站，
+    帳號與內容所有權完全歸補習班。
+  last_updated: 2026-10-02
+
+# -----------------------------------------------------------------------------
+# 現況（已確認的事實）
+# -----------------------------------------------------------------------------
+context:
+  old_site:
+    url: https://storykids.com.tw
+    stack: PHP + 外包自製「CMS管理平台」
+    status: 外包要整個換掉，上線後「不能」再跳回舊系統
+  domain:
+    name: storykids.com.tw
+    registrar: 遠振資訊
+  contact:
+    address: 台中市向上路698號（文心公園旁）
+  payment_methods_on_old_site:   # 來源：https://storykids.com.tw/notice_price.php
+    - name: 網站報名系統個別帳號
+      bank: 台新銀行 812
+      account: "96989 + 9 碼，共 14 碼，每位學員不同"   # 96989 推測為台新企業代號
+      notes: 繳費期限 3 天，逾期失效；系統 1 小時內自動發簡訊收據（舊系統自動對帳）
+    - name: 銀行匯款
+      bank: 合作金庫 006 文心分行
+      account: 2055-717-115500（固定帳號）
+      notes: 匯款人填學生姓名，LINE 通知 → 人工對帳
+    - name: ATM 轉帳
+      bank: 合作金庫 006 文心分行（同上固定帳號）
+      notes: LINE 告知末五碼 → 人工對帳
+    - name: 一對一專屬帳號
+      notes: 透過 LINE 索取；銀行與產生方式未知
+    - name: 現場繳費
+      notes: 僅收現金
+  old_cms_modules:   # 來源：舊後台截圖（2026-10-02）
+    網站設定: [網站資訊]
+    關於我們: [講堂理念, 講堂緣起, 講堂緣起說明, 講堂緣起感謝, 講堂老師, 講堂環境]
+    最新消息:
+      fields: [日期, 主題, 內文, 首頁(勾選), 啟用(勾選)]
+      count: 約 50 則
+    課程介紹: [班別管理, 課程管理, 首頁課程, 學期班補課退費辦法, 寒暑假補課退費辦法]
+    報名管理:
+      pages: [報名管理, 匯出報名資料, 匯款資料]
+      list_fields: [報名日期, 姓名, 家長姓名, 學校, 年級, 行動電話, 電子信箱, 認證, 正取/候補, 簡訊按鈕]
+      statuses: [待處理, 等待付費, 已付訂金, 已付費, 合庫轉帳, 現金繳清, 轉至其他梯次, 取消報名]
+    上課須知: [課程說明, 繳費說明]
+    幫孩子鼓掌: [說明影片, 照片管理]
+    聯絡我們: []
+    說明文字: [上課須知, 聯絡訊息, 付費帳號說明]
+    SEO設定: []
+    流量統計: [Google Analytics]
+  site_info:   # 來源：舊站爬取（2026-10-02）
+    address: 台中市南屯區向上路一段698號（文心森林公園旁）
+    phone: 04-23196868
+    fax: 04-23197274
+    email: story698@gmail.com
+    line: "https://line.me/ti/p/%40xvu5184n（@xvu5184n）"
+    facebook: https://www.facebook.com/story698
+    brand_colors: { orange_yellow: "#ffa601", wine_red: "#901317" }
+  findings:
+    - 舊站公開的最新消息只有 3 則（後台約 50 則，其餘為未啟用）；課程 5 個（11509 學期）；幫孩子鼓掌 12 則 + 1 支 YouTube。
+    - 舊站有 4 份 PDF（11509 課表、11509 上課注意事項、115 夏令營注意事項、上課時間與攜帶用品），已搬到 public/files/。
+    - 舊站聯絡表單（含圖形驗證碼）不搬；新站以電話 / LINE / Email 取代，避免需要後端。
+    - Cloudflare Pages 的 _redirects 無法比對查詢參數，news_view.php?id=* 等只能轉到列表頁。
+    - SurveyCake 沒有任何金流/收款功能，無法串台新、藍新、綠界。其 HashKey/IV 是 Webhook 填答資料解密用（AES-128-CBC），與金流無關。
+    - 報名需求比「報名+付款」複雜：梯次、名額上限、正取/候補、訂金、定時開放搶名額、手動簡訊。一般金流「收款連結」做不到候補/梯次/訂金。
+    - 116 冬令營預計 2026-11-05 14:30 開放報名 → 切換系統不可落在報名期間。
+
+# -----------------------------------------------------------------------------
+# 分階段範圍
+# -----------------------------------------------------------------------------
+phases:
+  phase1:
+    name: 靜態官網 + 內容後台
+    status: in_progress
+    scope:
+      - 官網所有資訊頁（首頁、關於我們、最新消息、課程、須知/辦法、幫孩子鼓掌、聯絡）
+      - 補習班人員可透過 CMS 後台更新內容，自動顯示於前台
+      - 舊 .php 網址 301 轉址
+      - 「線上報名」按鈕連結放在網站設定中，可隨時更換（phase2 前的暫定值待定）
+    out_of_scope: [報名系統, 金流, 簡訊]
+  phase2:
+    name: 報名系統 + 金流
+    status: on_hold
+    notes: >
+      需求盤點完成後再決定。候選：金流平台/開店平台/報名平台（SaaS，零後端）、
+      Google 表單+試算表（過渡）、或自建小後端（Cloudflare Workers + D1 /
+      SurveyCake Webhook + 台新虛擬帳號）。報名資料（個資）絕不存放在 Git。
+
+# -----------------------------------------------------------------------------
+# 已確定的決策
+# -----------------------------------------------------------------------------
+decisions:
+  - id: D1
+    topic: 前台框架
+    choice: Astro + Tailwind CSS（建置時編譯）
+    reason: 輸出純靜態 HTML，速度快、SEO 好；不使用 Tailwind Play CDN（官方標示僅供開發）。
+  - id: D2
+    topic: 內容存放
+    choice: GitHub repo 內的 Markdown / JSON（Astro Content Collections）
+    reason: 不需要資料庫；有完整版本紀錄可還原；官網不含任何個資。
+  - id: D3
+    topic: 內容後台（CMS）
+    choice: Pages CMS（託管版，設定檔 .pages.yml）
+    reason: 補習班人員以 Email 受邀即可編輯，不需 GitHub 帳號；只能改內容/媒體，改不到程式與設定；開源、內容不被綁定。
+    alternative: Sveltia CMS（需 GitHub 帳號 + Cloudflare Worker OAuth）
+  - id: D4
+    topic: 部署
+    choice: Cloudflare Pages（連 GitHub，push 自動部署）
+  - id: D5
+    topic: 網域
+    choice: 將 Nameserver 轉到 Cloudflare（註冊商仍留在遠振）
+    reason: 根網域（storykids.com.tw）綁 Cloudflare Pages 必須使用 Cloudflare Nameserver；CNAME 只適用於子網域。
+    caution: 轉移前務必完整複製 MX / SPF / DKIM 等郵件相關 DNS 紀錄。
+  - id: D6
+    topic: 網站形式
+    choice: 多頁式（每則消息、每個課程有獨立網址）
+    reason: 內容量大（關於我們 6 頁、消息約 50 則），利於 SEO 與分享。
+  - id: D7
+    topic: 帳號所有權
+    choice: GitHub / Cloudflare / 網域 / Analytics 皆以補習班 Email 開設，開發者為協作者
+    reason: 避免開發者成為下一個不透明外包。
+  - id: D8
+    topic: 系統切分
+    choice: 官網（公開內容，Git）與報名系統（個資，獨立系統）完全分離，僅以「報名按鈕連結」相接
+    reason: 官網被入侵也無個資外洩；報名方案更換時官網不用改。
+  - id: D9
+    topic: 流量統計
+    choice: Cloudflare Web Analytics（免 cookie），如補習班需要可再加 GA4
+
+# -----------------------------------------------------------------------------
+# 待確認事項
+# -----------------------------------------------------------------------------
+open_questions:
+  - id: Q1
+    question: 外包合約何時到期？舊系統可以維持到什麼時候？
+    owner: 補習班
+    blocks: [T9]
+  - id: Q2
+    question: 遠振的網域帳號是否在補習班手上？網域是否有使用 Email（MX 紀錄）？
+    owner: 補習班
+    blocks: [T9]
+  - id: Q3
+    question: 設計方向——沿用現有風格或重新設計？有無 Logo 原始檔、指定色系？
+    owner: 補習班
+  - id: Q4
+    question: 「線上報名」按鈕在 phase2 完成前要連到哪裡（Google 表單？LINE？）
+    owner: 補習班 / 開發者
+  - id: Q5
+    question: 台新代收合約是誰的名義（補習班 or 外包）？每筆手續費？
+    owner: 補習班
+    phase: phase2
+  - id: Q6
+    question: 每月線上報名量、三種繳費方式比例、報名必要功能（梯次/名額/候補/訂金/簡訊）、「認證」欄位意義
+    owner: 補習班
+    phase: phase2
+  - id: Q7
+    question: 舊系統資料（報名資料、照片原檔）能否請外包完整匯出？
+    owner: 補習班
+  - id: Q8
+    question: 「幫孩子鼓掌」有幾篇使用學生真實姓名（如 楊軒智、宇宸、翊皓、唯昕），新站是否保留？
+    owner: 補習班
+  - id: Q9
+    question: 週六營業時間是 08:30 還是 09:00？（舊站頁尾與繳費說明不一致，新站暫用 08:30）
+    owner: 補習班
+  - id: Q10
+    question: 繳費說明頁仍寫著「台新網站報名系統個別帳號」，舊系統關閉後此方式失效，上線前要改寫
+    owner: 補習班
+    blocks: [T9]
+  - id: Q11
+    question: 能否提供較新、解析度較高的照片（首頁主視覺目前暫用 2016 年的發表會照片，寬僅 1000px）
+    owner: 補習班
+
+# -----------------------------------------------------------------------------
+# 任務
+# status: todo | in_progress | done | blocked
+# -----------------------------------------------------------------------------
+tasks:
+  - id: T1
+    title: 建立 project.yaml / CLAUDE.md
+    status: done
+  - id: T2
+    title: 搭建 Astro + Tailwind 專案骨架（layouts、components、content collections）
+    status: done
+  - id: T3
+    title: 爬取舊網站公開內容並轉成 Markdown（消息、頁面、課程、網站資訊、圖片、PDF）
+    status: done
+    notes: 圖片 123 張 → public/images/old/；PDF 4 份 → public/files/
+  - id: T4
+    title: 前台頁面：首頁、關於我們、最新消息（列表/分頁/內頁）、課程（列表/內頁）、上課須知、幫孩子鼓掌、聯絡、404
+    status: done
+  - id: T5
+    title: 共用元件：Header（含線上報名 CTA，手機版置底）、Footer、LINE 浮動按鈕
+    status: done
+  - id: T6
+    title: Pages CMS 設定（.pages.yml），欄位中文化並對照舊 CMS 結構
+    status: done
+    notes: 需在 Pages CMS 實際連上 GitHub repo 後測試一輪（T8 之後）
+  - id: T6a
+    title: 圖片自動縮圖 GitHub Action（.github/workflows/optimize-images.yml）
+    status: done
+    notes: 後台上傳圖片推上 GitHub 後自動縮到 1920px、移除 EXIF
+  - id: T7
+    title: 舊網址 301 轉址（public/_redirects）
+    status: done
+  - id: T7a
+    title: 建立 GitHub repo（補習班帳號）並推上程式碼
+    status: todo
+  - id: T8
+    title: Cloudflare Pages 部署（預覽網址給補習班確認）
+    status: todo
+    depends_on: [T4]
+  - id: T9
+    title: DNS 切換（遠振 → Cloudflare Nameserver），SSL 自動開通
+    status: blocked
+    depends_on: [T8, Q1, Q2]
+  - id: T10
+    title: 交付文件：後台操作說明（附截圖）、帳號清單、README
+    status: todo
+    depends_on: [T6]
+  - id: T11
+    title: Phase 2 — 報名系統與金流方案評估
+    status: blocked
+    depends_on: [Q5, Q6]
+
+# -----------------------------------------------------------------------------
+# 變更紀錄
+# -----------------------------------------------------------------------------
+changelog:
+  - date: 2026-10-02
+    note: 建立規格。確定 phase1 範圍（靜態官網 + Pages CMS），報名/金流延後至 phase2。
+  - date: 2026-10-02
+    note: 完成 phase1 前台、舊站內容匯入、.pages.yml、_redirects、自動縮圖。色系改用舊站 Logo 的橘黃 + 酒紅。
+  - date: 2026-10-02
+    note: >
+      對齊舊站結構：主選單加入下拉子選單（關於講堂 4 項、課程介紹、上課須知 2 項，由內容自動產生）；
+      講堂感謝併回講堂緣起頁（舊站為同一頁）；幫孩子鼓掌改回舊站版型（影片置頂、圖文左右交錯 + more），
+      新增 subtitle / summary 欄位並沿用舊站排序。

@@ -1,0 +1,51 @@
+---
+// 最新消息列表（分頁）：/news 為第 1 頁，/news/page/2 起為後續頁
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from './PageHeader.astro';
+import NewsCard from './NewsCard.astro';
+import type { CollectionEntry } from 'astro:content';
+
+export const PAGE_SIZE = 12;
+
+interface Props {
+  items: CollectionEntry<'news'>[];
+  page: number;
+  totalPages: number;
+}
+const { items, page, totalPages } = Astro.props;
+const pageHref = (n: number) => (n === 1 ? '/news' : `/news/page/${n}`);
+---
+
+<BaseLayout title={page > 1 ? `最新消息（第 ${page} 頁）` : '最新消息'}>
+  <PageHeader title="最新消息" subtitle="課程開放報名、活動與講堂公告" crumbs={[{ label: '最新消息', href: '/news' }]} />
+  <section class="container-page py-12">
+    {
+      items.length ? (
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item) => <NewsCard item={item} />)}
+        </div>
+      ) : (
+        <p class="text-ink-500">目前沒有消息。</p>
+      )
+    }
+
+    {
+      totalPages > 1 && (
+        <nav class="mt-12 flex flex-wrap justify-center gap-2" aria-label="分頁">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <a
+              href={pageHref(n)}
+              class:list={[
+                'grid size-10 place-items-center rounded-full font-bold',
+                n === page ? 'bg-brand-600 text-white' : 'bg-white text-ink-700 ring-1 ring-black/10 hover:text-brand-700',
+              ]}
+              aria-current={n === page ? 'page' : undefined}
+            >
+              {n}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+  </section>
+</BaseLayout>
