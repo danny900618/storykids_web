@@ -56,8 +56,8 @@
   .prose-story h2 {
     @apply border-l-[6px] border-brand-500 pl-3;
   }
-  /* 文章第一段當作導言，字級稍大 */
-  .prose-story > p:first-child {
+  /* 文章第一段當作導言，字級稍大（卡片內的內文加 no-lead 不套用） */
+  .prose-story:not(.no-lead) > p:first-child {
     @apply text-lg text-ink-700 sm:text-xl;
   }
   /* 同一段落放了兩張以上的圖片 → 自動排成格狀（手機一欄、平板以上兩欄） */

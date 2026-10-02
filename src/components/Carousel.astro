@@ -1,0 +1,111 @@
+---
+// 首頁輪播：顯示勾選「顯示在首頁」的最新消息（沿用舊站首頁的消息輪播）
+// - 手機可左右滑動（CSS scroll-snap，不依賴 JavaScript）
+// - JavaScript 只負責自動播放、左右箭頭與下方圓點；使用者偏好「減少動態」時不自動播放
+interface Slide {
+  title: string;
+  href: string;
+  image: string;
+}
+interface Props {
+  slides: Slide[];
+}
+const { slides } = Astro.props;
+---
+
+<section class="relative bg-ink-900" aria-roledescription="carousel" aria-label="最新消息輪播" data-carousel>
+  <div class="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-track>
+    {
+      slides.map((s, i) => (
+        <a
+          href={s.href}
+          class="relative block w-full shrink-0 snap-start"
+          aria-roledescription="slide"
+          aria-label={`${i + 1} / ${slides.length}：${s.title}`}
+        >
+          <img
+            src={s.image}
+            alt={s.title}
+            class="mx-auto aspect-[2/1] max-h-[640px] w-full object-cover"
+            loading={i === 0 ? 'eager' : 'lazy'}
+            fetchpriority={i === 0 ? 'high' : undefined}
+          />
+          <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent pt-8 pb-7 sm:pt-16 sm:pb-12">
+            <p class="container-page line-clamp-1 text-sm font-bold text-white drop-shadow sm:line-clamp-2 sm:text-2xl">{s.title}</p>
+          </div>
+        </a>
+      ))
+    }
+  </div>
+
+  {
+    slides.length > 1 && (
+      <>
+        <button
+          type="button"
+          class="absolute top-1/2 left-3 hidden size-11 -translate-y-1/2 place-items-center rounded-full bg-white/80 text-ink-900 shadow hover:bg-white sm:grid"
+          aria-label="上一則"
+          data-prev
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          class="absolute top-1/2 right-3 hidden size-11 -translate-y-1/2 place-items-center rounded-full bg-white/80 text-ink-900 shadow hover:bg-white sm:grid"
+          aria-label="下一則"
+          data-next
+        >
+          ›
+        </button>
+        <div class="absolute inset-x-0 bottom-3 flex justify-center gap-2">
+          {slides.map((s, i) => (
+            <button
+              type="button"
+              class="h-2.5 w-2.5 rounded-full bg-white/50 transition-all aria-[current=true]:w-7 aria-[current=true]:bg-brand-500"
+              aria-label={`第 ${i + 1} 則：${s.title}`}
+              aria-current={i === 0 ? 'true' : 'false'}
+              data-dot={i}
+            />
+          ))}
+        </div>
+      </>
+    )
+  }
+</section>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('[data-carousel]')) {
+    const track = root.querySelector<HTMLElement>('[data-track]')!;
+    const dots = [...root.querySelectorAll<HTMLButtonElement>('[data-dot]')];
+    const count = track.children.length;
+    if (count < 2) continue;
+
+    const current = () => Math.round(track.scrollLeft / track.clientWidth);
+    const go = (i: number) => track.scrollTo({ left: ((i + count) % count) * track.clientWidth });
+
+    // 捲動時同步圓點狀態（包含手機手指滑動）
+    track.addEventListener('scroll', () => {
+      const idx = current();
+      dots.forEach((d, i) => d.setAttribute('aria-current', String(i === idx)));
+    }, { passive: true });
+
+    root.querySelector('[data-prev]')?.addEventListener('click', () => go(current() - 1));
+    root.querySelector('[data-next]')?.addEventListener('click', () => go(current() + 1));
+    dots.forEach((d, i) => d.addEventListener('click', () => go(i)));
+
+    // 自動播放：每 5 秒換一張；滑鼠移入、鍵盤聚焦、分頁不在前景時暫停
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let paused = false;
+      const pause = () => (paused = true);
+      const resume = () => (paused = false);
+      root.addEventListener('mouseenter', pause);
+      root.addEventListener('mouseleave', resume);
+      root.addEventListener('focusin', pause);
+      root.addEventListener('focusout', resume);
+      root.addEventListener('touchstart', pause, { passive: true });
+      setInterval(() => {
+        if (!paused && document.visibilityState === 'visible') go(current() + 1);
+      }, 5000);
+    }
+  }
+</script>

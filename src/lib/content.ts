@@ -21,6 +21,24 @@ export async function getPages(section: 'about' | 'info') {
   return items.sort((a, b) => a.data.order - b.data.order);
 }
 
+export async function getTeachers() {
+  const items = await getCollection('teachers', ({ data }) => data.published);
+  return items.sort((a, b) => a.data.order - b.data.order);
+}
+
+// 只有 YouTube 影片、沒有任何照片的項目 → 在「幫孩子鼓掌」頁最上方直接播放
+const isVideoOnly = (data: { youtube?: string; images: string[]; cover?: string }) =>
+  !!data.youtube && data.images.length === 0 && !data.cover;
+
+export async function getGalleryVideos() {
+  return (await getGallery()).filter((a) => isVideoOnly(a.data));
+}
+
+// 圖文故事（列表與首頁顯示用）
+export async function getGalleryStories() {
+  return (await getGallery()).filter((a) => !isVideoOnly(a.data));
+}
+
 export async function getGallery() {
   const items = await getCollection('gallery', ({ data }) => data.published);
   // 有日期的排前面（新到舊），沒有日期的依 order 排序

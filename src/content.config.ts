@@ -37,6 +37,8 @@ const news = defineCollection({
     // 對應舊 CMS 的「啟用」勾選：未啟用的消息不會出現在網站上（可當草稿）
     published: bool(true),
     cover: optionalText,
+    // 首頁輪播用的橫幅圖片（建議 1500×730）；未填寫時使用封面圖片
+    slide_image: optionalText,
     // 列表卡片上的摘要；未填寫時自動擷取內文開頭
     summary: optionalText,
   }),
@@ -104,4 +106,21 @@ const gallery = defineCollection({
   }),
 });
 
-export const collections = { news, courses, pages, gallery };
+// 講堂老師：顯示在「關於講堂 › 講堂老師」頁面
+const teachers = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/teachers' }),
+  schema: z.object({
+    name: z.string(),
+    // 職稱，例如「班主任」「指導老師」
+    role: optionalText,
+    // 分類標籤（顯示在卡片上方），例如「課程總監」「口語表達」
+    category: optionalText,
+    // 學歷
+    major: optionalText,
+    photo: optionalText,
+    order: orderNumber,
+    published: bool(true),
+  }),
+});
+
+export const collections = { news, courses, pages, gallery, teachers };

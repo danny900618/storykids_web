@@ -4,6 +4,7 @@ import type { CollectionEntry } from 'astro:content';
 import { render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageHeader from './PageHeader.astro';
+import TeacherList from './TeacherList.astro';
 import { getPages } from '../lib/content';
 import { excerpt } from '../lib/site';
 
@@ -45,6 +46,8 @@ const { Content } = await render(page);
       <div class="prose-story">
         <Content />
       </div>
+      <!-- 「講堂老師」頁：內文下方接著顯示老師列表（老師資料在後台「講堂老師」管理） -->
+      {page.id === 'teachers' && <TeacherList />}
     </article>
   </div>
 </BaseLayout>

@@ -1,0 +1,40 @@
+---
+// 講堂老師列表：沿用舊站版型
+// 分類標籤（課程總監 / 口語表達）→ 卡片：職稱、姓名＋老師、學歷、簡介
+import { render } from 'astro:content';
+import { getTeachers } from '../lib/content';
+
+const teachers = await Promise.all(
+  (await getTeachers()).map(async (t) => ({ ...t, Content: (await render(t)).Content })),
+);
+---
+
+<div class="mt-10 space-y-10">
+  {
+    teachers.map(({ data, Content }) => (
+      <section>
+        {data.category && (
+          <p class="relative mb-4 inline-block rounded-full bg-brand-500 px-5 py-2 text-lg font-bold text-brand-700 shadow-sm after:absolute after:-bottom-1.5 after:left-8 after:size-3 after:rotate-45 after:bg-brand-500">
+            {data.category}
+          </p>
+        )}
+        <article class="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5 md:grid md:grid-cols-[240px_1fr]">
+          <header class="flex items-center gap-4 border-b border-brand-100 bg-brand-50 p-6 md:flex-col md:items-start md:justify-start md:border-r md:border-b-0 md:p-8">
+            {data.photo && <img src={data.photo} alt={`${data.name}老師`} loading="lazy" class="size-20 rounded-full object-cover md:size-28" />}
+            <div>
+              {data.role && <p class="font-bold text-brand-600">{data.role}</p>}
+              <h3 class="mt-1 text-3xl font-bold text-ink-900">
+                {data.name}
+                <span class="ml-1 text-lg font-medium text-ink-500">老師</span>
+              </h3>
+              {data.major && <p class="mt-2 text-sm text-ink-500">{data.major}</p>}
+            </div>
+          </header>
+          <div class="prose-story no-lead p-6 sm:p-8">
+            <Content />
+          </div>
+        </article>
+      </section>
+    ))
+  }
+</div>

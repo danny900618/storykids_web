@@ -1,0 +1,42 @@
+---
+// 幫孩子鼓掌的一則：一半圖片、一半文字（副標題、標題、描述、more），reverse 時圖片在右
+// 用於「幫孩子鼓掌」列表頁與首頁
+import type { CollectionEntry } from 'astro:content';
+import Icon from './Icon.astro';
+import { formatDate, youtubeId, excerpt } from '../lib/site';
+
+interface Props {
+  item: CollectionEntry<'gallery'>;
+  reverse?: boolean;
+}
+const { item, reverse = false } = Astro.props;
+const { title, subtitle, summary, date, cover, images, youtube } = item.data;
+const href = `/gallery/${item.id}`;
+const videoId = youtubeId(youtube);
+// 封面：優先使用封面圖 → 第一張照片 → YouTube 縮圖
+const image = cover || images[0] || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined);
+const text = summary || excerpt(item.body, 90);
+---
+
+<article class="grid overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5 md:grid-cols-2">
+  <a href={href} class:list={['block bg-brand-100', reverse && 'md:order-2']}>
+    {
+      image ? (
+        <img src={image} alt={title} loading="lazy" class="aspect-[4/3] size-full object-cover transition hover:scale-[1.02]" />
+      ) : (
+        <div class="aspect-[4/3]" />
+      )
+    }
+  </a>
+  <div class="flex flex-col justify-center p-6 sm:p-8">
+    {subtitle && <p class="inline-flex w-fit rounded-full bg-brand-100 px-3 py-1 text-sm font-bold text-brand-700">{subtitle}</p>}
+    <h3 class="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
+      <a href={href} class="hover:text-brand-700">{title}</a>
+    </h3>
+    {date && <p class="mt-1 text-sm text-ink-500">{formatDate(date)}</p>}
+    {text && <p class="mt-3 leading-relaxed text-ink-700">{text}</p>}
+    <a href={href} class="mt-5 inline-flex w-fit items-center gap-1 font-bold text-brand-700 hover:underline">
+      more <Icon name="arrow" class="size-4" />
+    </a>
+  </div>
+</article>

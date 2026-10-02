@@ -41,7 +41,7 @@ content:
         options:
           format: yyyy-MM-dd
       - name: featured
-        label: 顯示在首頁
+        label: 顯示在首頁（會出現在首頁最上方的輪播）
         type: boolean
         default: false
       - name: published
@@ -50,6 +50,11 @@ content:
         default: true
       - name: cover
         label: 封面圖片
+        type: image
+        options:
+          media: images
+      - name: slide_image
+        label: 首頁輪播圖片（選填，建議橫幅 1500×730；未上傳則使用封面圖片）
         type: image
         options:
           media: images
@@ -168,6 +173,50 @@ content:
         default: true
       - name: body
         label: 內文
+        type: rich-text
+
+  # ---------------------------------------------------------------- 講堂老師
+  - name: teachers
+    label: 講堂老師
+    type: collection
+    path: src/content/teachers
+    filename: "teacher-{year}{month}{day}-{hour}{minute}{second}.md"
+    view:
+      fields: [name, role, category, order, published]
+      primary: name
+      sort: [order, name]
+      default:
+        sort: order
+        order: asc
+    fields:
+      - name: name
+        label: 老師名字（例如：將軍，網站會自動加上「老師」）
+        type: string
+        required: true
+      - name: role
+        label: 職稱（例如：班主任、指導老師）
+        type: string
+      - name: category
+        label: 分類標籤（顯示在卡片上方，例如：課程總監、口語表達）
+        type: string
+      - name: major
+        label: 學歷（例如：中興大學 教育研究所）
+        type: string
+      - name: photo
+        label: 照片（選填）
+        type: image
+        options:
+          media: images
+      - name: order
+        label: 排序（數字越小越前面）
+        type: number
+        default: 100
+      - name: published
+        label: 啟用
+        type: boolean
+        default: true
+      - name: body
+        label: 老師簡介
         type: rich-text
 
   # ---------------------------------------------------------------- 幫孩子鼓掌
