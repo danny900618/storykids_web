@@ -1,6 +1,9 @@
 # 自動縮圖：後台上傳的圖片（常是手機原圖 3～5MB）推上 GitHub 後，
-# 自動縮到最長邊 1920px、JPEG 品質 82，並移除 EXIF（含 GPS 位置等隱私資訊），
-# 再 commit 回 repo。避免 repo 越來越大、網站載入變慢。
+# 自動縮到最長邊 1920px、JPEG 品質 82，並移除 EXIF（含 GPS 位置等隱私資訊），再 commit 回 repo。
+#
+# 每次都檢查「所有」圖片（只處理過大的），而不是只看這次 commit 的變更：
+# GitHub 同一個工作只保留一個排隊中的執行，短時間連續上傳時，被取代的那次所上傳的圖片
+# 會在下一次執行時一併補縮，不會漏掉。已經縮過的圖片不會重複處理。
 name: 自動縮圖
 
 on:
@@ -22,28 +25,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: 安裝 ImageMagick
         run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
 
-      - name: 縮圖（只處理這次新增或修改的圖片）
+      - name: 縮小過大的圖片
         run: |
-          # 手動執行（workflow_dispatch）時處理全部圖片；push 時只處理變更的圖片
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            files=$(find public/images -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \))
-          else
-            files=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- public/images | grep -iE '\.(jpe?g|png|webp)$' || true)
-          fi
-          for f in $files; do
-            [ -f "$f" ] || continue
-            before=$(stat -c%s "$f")
+          MAX=1920            # 最長邊（px）
+          MAX_BYTES=700000    # 超過約 700KB 也重新壓縮
+          find public/images -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -print0 |
+          while IFS= read -r -d '' f; do
+            read -r w h < <(identify -format '%w %h\n' "$f[0]" 2>/dev/null || echo "0 0")
+            size=$(stat -c%s "$f")
+            if [ "$w" -le "$MAX" ] && [ "$h" -le "$MAX" ] && [ "$size" -le "$MAX_BYTES" ]; then continue; fi
+            cp "$f" "$f.orig"
             # 「>」表示只縮小、不放大；-auto-orient 依手機拍攝方向轉正
-            mogrify -auto-orient -resize '1920x1920>' -strip -quality 82 "$f"
-            after=$(stat -c%s "$f")
-            # 若處理後反而變大（原圖已經很小），就還原
-            if [ "$after" -ge "$before" ]; then git checkout -- "$f"; fi
+            mogrify -auto-orient -resize "${MAX}x${MAX}>" -strip -quality 82 "$f"
+            # 處理後沒有變小（例如已高度壓縮的 PNG）就還原，避免每次重複處理
+            if [ "$(stat -c%s "$f")" -ge "$size" ]; then mv "$f.orig" "$f"; else rm "$f.orig"; echo "縮圖：$f"; fi
           done
 
       - name: Commit 縮好的圖片
@@ -55,4 +54,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "自動縮圖"
+          # 執行期間若有新的 commit（例如人員又存檔），先合併再推
+          git pull --rebase
           git push

@@ -9,6 +9,11 @@ on:
       - 'public/images/**'
   pull_request:
 
+# 有新的 push 時取消還在跑的舊測試（只需要測最新版本）
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
