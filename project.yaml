@@ -225,9 +225,13 @@ open_questions:
   - id: Q3
     question: 設計方向——沿用現有風格或重新設計？有無 Logo 原始檔、指定色系？
     owner: 補習班
+    status: resolved
+    answer: 沿用舊站 Logo 色系（橘黃 #ffa601 + 酒紅 #901317）與舊站版面結構；Logo 原始檔仍可向補習班索取以提升解析度
   - id: Q4
     question: 「線上報名」按鈕在 phase2 完成前要連到哪裡（Google 表單？LINE？）
     owner: 補習班 / 開發者
+    status: resolved
+    answer: 有上課時段的課程連到課程頁時段；沒有時段時連到網站設定的報名連結，未設定則連到 LINE。正式網域上金流未啟用前報名會被擋下並提示改用 LINE／電話
   - id: Q5
     question: 台新代收合約是誰的名義（補習班 or 外包）？每筆手續費？
     owner: 補習班
@@ -236,6 +240,10 @@ open_questions:
     question: 每月線上報名量、三種繳費方式比例、報名必要功能（梯次/名額/候補/訂金/簡訊）、「認證」欄位意義
     owner: 補習班
     phase: phase2
+    status: resolved
+    answer: >
+      已決定：時段名額、額滿自動候補、報名時繳全額（不做訂金）、簡訊與 Email 通知、沿用舊系統報名欄位。
+      「認證」為舊系統的信箱驗證，決定不做。報名量與繳費比例仍可向補習班了解（供流量評估）
   - id: Q7
     question: 舊系統資料（報名資料、照片原檔）能否請外包完整匯出？
     owner: 補習班
@@ -261,6 +269,10 @@ open_questions:
     question: 三竹簡訊 API 帳號與規格
     owner: 補習班
     phase: phase2
+    status: partial
+    answer: >
+      2026-10-05 已取得帳號密碼。尚待：設定 MITAKE_USERNAME／MITAKE_PASSWORD secrets、確認帳號類型（企業／個人，對應 MITAKE_API_URL）、
+      是否已開通 HTTP API、舊系統簡訊是否由此帳號發送（登入三竹後台看發送紀錄）
   - id: Q14
     question: 台新、三竹是否要求固定 IP 白名單？（Cloudflare Workers 沒有固定出口 IP）
     owner: 補習班 / 台新 / 三竹
@@ -314,7 +326,7 @@ tasks:
   - id: T8a
     title: 內容後台啟用：建立 GitHub OAuth App、設定 GITHUB_CLIENT_ID／GITHUB_CLIENT_SECRET、實測「後台存檔 → 網站自動更新」、邀請補習班人員為 repo 協作者
     status: in_progress
-    notes: OAuth App 與 secrets 已設定（2026-10-02），待實測與邀請人員
+    notes: OAuth App 與 secrets 已設定、內容後台已實際存檔成功（2026-10-05）。剩餘：邀請補習班人員為 repo 協作者並提供操作教學
     depends_on: [T13]
   - id: T9
     title: DNS 切換（網路中文 → Cloudflare Nameserver），SSL 自動開通
@@ -322,8 +334,10 @@ tasks:
     depends_on: [T8, Q1, Q2]
   - id: T10
     title: 交付文件：後台操作說明（附截圖）、帳號清單、README
-    status: todo
-    depends_on: [T6]
+    status: in_progress
+    notes: >
+      README 已完成；後台操作教學（測試版）已寫成 Claude Docs 文件（https://claude.ai/code/artifact/66c33ee7-6c9e-4d71-a536-e616d0def7fd），
+      需依 Sveltia 內容後台更新截圖與步驟。帳號清單（各服務的擁有者與用途，不含密碼）尚未整理
   - id: T11
     title: Phase 2 — 報名系統與金流方案評估
     status: done
@@ -370,6 +384,64 @@ tasks:
     title: 建立 Cloudflare Turnstile（site key 填 wrangler.jsonc、secret 用 wrangler secret put）
     status: done
     notes: 2026-10-05 完成（widget：故事講堂報名）。上線時在 Turnstile 的 Hostnames 加上 storykids.com.tw、www.storykids.com.tw
+  # ---- 開發：現在可以做（不需等外部資料） ----
+  - id: T22
+    title: 分開正式與測試環境（測試用 Worker storykids-web-dev + D1 storykids-dev，wrangler env），避免上線後測試資料混入正式報名
+    status: todo
+    notes: 上線前完成；目前 workers.dev 預覽網址兼作測試環境
+  - id: T23
+    title: 定時對帳排程（Cron Triggers）架構：每 N 分鐘向台新取得入帳明細 → reconcile()；先接模擬資料，待台新規格補上取得方式
+    status: todo
+    depends_on: [Q12]
+  - id: T24
+    title: 報名管理後台自動刷新（每 30 秒），入帳後狀態自動更新
+    status: todo
+  - id: T25
+    title: 繳費期限前一天自動提醒（Email／簡訊，排程）
+    status: todo
+    notes: 選配
+  - id: T26
+    title: 報名資料定期自動備份（排程匯出 D1 到 R2 或寄到公司信箱）
+    status: todo
+    notes: 選配；目前可手動匯出 Excel 或 wrangler d1 export
+  - id: T27
+    title: 檢查簡訊長度（中文 70 字一則），視需要縮短以節省三竹點數
+    status: todo
+    depends_on: [T15]
+  # ---- 上線當天清單（DNS 切換後依序執行，見 README） ----
+  - id: T28
+    title: Cloudflare 加入 storykids.com.tw、逐筆核對舊 DNS 紀錄（context.domain.records_to_copy）、全部 DNS only
+    status: todo
+    depends_on: [Q2]
+  - id: T29
+    title: Worker 綁定 storykids.com.tw、www.storykids.com.tw（SSL 自動）
+    status: todo
+    depends_on: [T9]
+  - id: T30
+    title: 正式網域設定：Turnstile Hostnames、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
+    status: todo
+    depends_on: [T9]
+  - id: T31
+    title: 報名管理後台改用 Cloudflare Access（Email 驗證碼），填入 ACCESS_TEAM_DOMAIN／ACCESS_AUD，停用共用密碼
+    status: todo
+    depends_on: [T9]
+  - id: T32
+    title: Email 正式寄送：Brevo 驗證網域（DKIM／SPF／DMARC）、Cloudflare Email Routing（service@ → story698@gmail.com）、MAIL_FROM 改回 service@、COMPANY_EMAIL 確認、MAIL_MODE=live
+    status: todo
+    depends_on: [T9, Q15]
+  - id: T33
+    title: 上線前清理：清空 D1 測試報名資料、改寫繳費說明頁（Q10）、更新首頁照片（Q11）、處理學生姓名（Q8）、營業時間（Q9）
+    status: todo
+    depends_on: [T17, Q8, Q9, Q10, Q11]
+  - id: T34
+    title: 開放正式線上報名：台新串接完成後 PAYMENT_MODE=live、SMS_MODE=live；報名尖峰前評估 Workers Paid
+    status: todo
+    depends_on: [T14, T15]
+  # ---- 上線後 ----
+  - id: T35
+    title: 上線後驗證（網站、報名、通知、簡訊），通知外包停用舊系統；確認舊信箱改用 Email Routing 後再停舊主機
+    status: todo
+    depends_on: [T29, T32, Q1, Q7]
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
@@ -439,3 +511,5 @@ changelog:
     note: 報名管理後台新增「操作紀錄」區塊（進入後台 30 分鐘記一次、修改狀態／正取候補、模擬入帳、匯出名單、寄測試信／簡訊、系統自動對帳），可依使用者篩選；測試 64 項。
   - date: 2026-10-05
     note: WHOIS 查得網域註冊商為網路中文（非遠振）、註冊人為魔瓶視覺設計、到期 2028-04-17；需請魔瓶過戶給補習班（Q2）。
+  - date: 2026-10-05
+    note: 整理待辦：標示已解決的 Q3／Q4／Q6、Q13 部分完成；更新 T8a、T10；新增 T22～T35（開發、上線當天清單、上線後）。
