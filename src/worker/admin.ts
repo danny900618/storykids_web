@@ -3,7 +3,7 @@ import type { Env, Registration } from './env';
 import { STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
 import { countBySession, loadSessions } from './sessions';
 import { PAID_STATUSES, generateVirtualAccount, reconcile } from './payment';
-import { notifyPromoted, sendTestEmail } from './notify';
+import { notifyPromoted, parseAddress, sendTestEmail, sendTestSms } from './notify';
 
 export async function handleAdmin(request: Request, env: Env, actor: string): Promise<Response> {
   const url = new URL(request.url);
@@ -18,11 +18,14 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
       sms_mode: env.SMS_MODE,
       company_email: env.COMPANY_EMAIL,
       mail_ready: !!env.BREVO_API_KEY,
+      sms_ready: !!(env.MITAKE_USERNAME && env.MITAKE_PASSWORD),
+      sms_points: await latestSmsPoints(env),
       statuses: STATUSES,
     });
   }
 
   if (method === 'POST' && path === '/test-email') return testEmail(request, env, actor);
+  if (method === 'POST' && path === '/test-sms') return testSms(request, env, actor);
   if (method === 'GET' && path === '/sessions') return listSessions(request, env);
   if (method === 'GET' && path === '/registrations') return json(await queryRegistrations(env, url.searchParams));
   if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams);
@@ -185,11 +188,24 @@ async function exportCsv(env: Env, params: URLSearchParams): Promise<Response> {
 
 // 寄測試信（確認 Brevo 串接與寄件網域設定）
 async function testEmail(request: Request, env: Env, actor: string): Promise<Response> {
-  const body = (await request.json().catch(() => ({}))) as { to?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { to?: unknown; from?: unknown; notification_id?: unknown };
+  const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const to = typeof body.to === 'string' ? body.to.trim() : '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: '請填寫正確的 Email' }, 400);
+  if (!isEmail(to)) return json({ error: '請填寫正確的 Email' }, 400);
+  // 寄件人（選填）：可填「名稱 <email>」或只填 email，需先在 Brevo 驗證過
+  const from = typeof body.from === 'string' ? body.from.trim() : '';
+  if (from && !isEmail(parseAddress(from).email)) return json({ error: '寄件人 Email 格式錯誤' }, 400);
+  // 預覽某一封通知信：用系統記錄的同一份內容寄給自己
+  let content: { subject: string; body: string } | undefined;
+  if (body.notification_id !== undefined) {
+    const n = await env.DB.prepare(`SELECT subject, body FROM notifications WHERE id = ? AND channel = 'email'`)
+      .bind(Number(body.notification_id))
+      .first<{ subject: string | null; body: string }>();
+    if (!n) return json({ error: '找不到這封通知信' }, 404);
+    content = { subject: `［預覽］${n.subject ?? ''}`, body: n.body.replace(/\n\n［寄送失敗］[\s\S]*$/, '') };
+  }
   try {
-    await sendTestEmail(env, to);
+    await sendTestEmail(env, to, { from: from || undefined, content });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : '寄送失敗' }, 502);
   }
@@ -197,4 +213,30 @@ async function testEmail(request: Request, env: Env, actor: string): Promise<Res
     .bind(actor, to, nowIso())
     .run();
   return json({ ok: true });
+}
+
+// 發測試簡訊（確認三竹串接；會扣點數）
+async function testSms(request: Request, env: Env, actor: string): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as { to?: unknown };
+  const to = typeof body.to === 'string' ? body.to.replace(/[\s-]/g, '') : '';
+  if (!/^09\d{8}$/.test(to)) return json({ error: '請填寫正確的手機號碼（09 開頭共 10 碼）' }, 400);
+  let accountPoint: number | undefined;
+  try {
+    ({ accountPoint } = await sendTestSms(env, to));
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : '發送失敗' }, 502);
+  }
+  await env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (NULL, ?, '發測試簡訊', ?, ?)`)
+    .bind(actor, `${to}${accountPoint !== undefined ? `（剩餘點數 ${accountPoint}）` : ''}`, nowIso())
+    .run();
+  return json({ ok: true, account_point: accountPoint ?? null });
+}
+
+// 最近一次發送簡訊時三竹回報的剩餘點數
+async function latestSmsPoints(env: Env): Promise<number | null> {
+  const row = await env.DB.prepare(
+    `SELECT body FROM notifications WHERE channel = 'sms' AND result = 'sent' AND body LIKE '%［三竹剩餘點數%' ORDER BY id DESC LIMIT 1`,
+  ).first<{ body: string }>();
+  const m = row?.body.match(/三竹剩餘點數 (\d+)/);
+  return m ? Number(m[1]) : null;
 }

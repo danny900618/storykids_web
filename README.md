@@ -96,7 +96,7 @@
 |---|---|
 | 台新虛擬帳號規則 | `src/worker/payment.ts` → `generateVirtualAccount()` |
 | 台新入帳通知 | `src/worker/index.ts` 的 `/api/taishin/notify`：驗證來源與簽章、解密後呼叫 `reconcile()` |
-| 三竹簡訊 | `src/worker/notify.ts` → `sendSmsLive()`，帳密用 `wrangler secret put` 設定 |
+| 三竹簡訊 | **已串接**（`sendSmsLive()`，HTTP API SmSend）。帳密用 `wrangler secret put MITAKE_USERNAME`／`MITAKE_PASSWORD`；發送網址 `MITAKE_API_URL`（企業／個人帳號不同）。測試通過後把 `SMS_MODE` 改為 `live`；後台「發測試簡訊」可測試（會扣點數），右上角顯示剩餘點數 |
 | Email | **已串接 Brevo**（`sendEmailLive()`，金鑰 `BREVO_API_KEY` 已設定）。待 DNS 轉到 Cloudflare 後在 Brevo 驗證網域（DKIM／SPF／DMARC），再把 `MAIL_MODE` 改為 `live`；後台右上角「寄測試信」可隨時測試 |
 | 正式啟用 | 三個 `*_MODE` 改為 `live` |
 

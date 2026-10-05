@@ -74,6 +74,32 @@ describe('後台寄測試信', () => {
     expect((brevoCalls[0].body.to as { email: string }[])[0].email).toBe('me@example.com');
   });
 
+  it('可以指定寄件人（網域驗證前用自己驗證過的信箱）', async () => {
+    const res = await call(
+      adminRequest('/api/admin/test-email', { method: 'POST', body: JSON.stringify({ to: 'me@example.com', from: '故事講堂測試 <me@gmail.com>' }) }),
+      live,
+    );
+    expect(res.status).toBe(200);
+    expect(brevoCalls[0].body.sender).toEqual({ name: '故事講堂測試', email: 'me@gmail.com' });
+  });
+
+  it('預覽某一封通知信：寄出跟家長收到的同一份內容', async () => {
+    const { body: reg } = await register('two-seats');
+    const n = await db().prepare(`SELECT id, subject FROM notifications WHERE registration_id = ? AND channel = 'email' AND subject LIKE '%報名成功%'`).bind(reg.id).first<{ id: number; subject: string }>();
+    const res = await call(
+      adminRequest('/api/admin/test-email', { method: 'POST', body: JSON.stringify({ to: 'me@example.com', notification_id: n!.id }) }),
+      live,
+    );
+    expect(res.status).toBe(200);
+    expect(String(brevoCalls[0].body.subject)).toBe(`［預覽］${n!.subject}`);
+    expect(String(brevoCalls[0].body.textContent)).toContain(reg.va_account!);
+  });
+
+  it('寄件人格式錯誤被拒絕', async () => {
+    const res = await call(adminRequest('/api/admin/test-email', { method: 'POST', body: JSON.stringify({ to: 'me@example.com', from: 'not-an-email' }) }), live);
+    expect(res.status).toBe(400);
+  });
+
   it('Email 格式錯誤被拒絕', async () => {
     expect((await send('not-an-email', live)).status).toBe(400);
   });

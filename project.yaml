@@ -333,8 +333,10 @@ tasks:
     depends_on: [Q12, Q14]
   - id: T15
     title: 串接三竹簡訊
-    status: blocked
-    depends_on: [Q13, Q14]
+    status: in_progress
+    notes: >
+      2026-10-05：程式已串接三竹 HTTP API（SmSend、clientid 防重複、記錄剩餘點數）、後台「發測試簡訊」、7 項測試。
+      剩餘：設定 MITAKE_USERNAME／MITAKE_PASSWORD、確認 MITAKE_API_URL 與是否需 IP 白名單、實測後 SMS_MODE 改 live
   - id: T16
     title: 串接 Email 寄送（Brevo）並設定 DNS SPF／DKIM／DMARC
     status: in_progress
@@ -406,3 +408,5 @@ changelog:
     note: Email 串接 Brevo（sendEmailLive、寄送失敗記錄原因、後台寄測試信），新增 8 項測試（共 51 項通過）；MAIL_MODE 維持 mock。
   - date: 2026-10-05
     note: 啟用 Cloudflare Turnstile（site key 寫入 wrangler.jsonc，secret 已設定）。
+  - date: 2026-10-05
+    note: 三竹簡訊串接（sendSmsLive、後台發測試簡訊與剩餘點數顯示），新增 7 項測試（共 58 項通過）；SMS_MODE 維持 mock。

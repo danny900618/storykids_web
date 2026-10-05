@@ -31,6 +31,12 @@ export interface Env {
   COMPANY_EMAIL: string; // 有人報名時通知的公司信箱
   BREVO_API_KEY?: string; // Brevo 寄信 API 金鑰：`wrangler secret put BREVO_API_KEY`
 
+  // 三竹簡訊 HTTP API：帳號密碼用 `wrangler secret put MITAKE_USERNAME`／`MITAKE_PASSWORD`
+  MITAKE_USERNAME?: string;
+  MITAKE_PASSWORD?: string;
+  // 發送網址：企業帳號 https://smsapi.mitake.com.tw/api/mtk/SmSend；個人帳號 http://smsb2c.mitake.com.tw/b2c/mtk/SmSend（以三竹提供的文件為準）
+  MITAKE_API_URL?: string;
+
   // 後台登入（擇一）：
   // 1. Cloudflare Access（正式建議）：設定 ACCESS_TEAM_DOMAIN 與 ACCESS_AUD
   // 2. 暫時密碼（測試用）：用 `wrangler secret put ADMIN_PASSWORD` 設定

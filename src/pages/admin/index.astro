@@ -19,7 +19,9 @@ import '../../styles/global.css';
         <span id="mode-badge" class="hidden rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800"></span>
         <div class="ml-auto flex flex-wrap items-center gap-3 text-sm">
           <span id="actor" class="text-ink-500"></span>
+          <span id="sms-points" class="hidden text-ink-500"></span>
           <button type="button" id="test-email" class="rounded-lg border border-black/15 px-3 py-1 hover:bg-slate-100">寄測試信</button>
+          <button type="button" id="test-sms" class="rounded-lg border border-black/15 px-3 py-1 hover:bg-slate-100">發測試簡訊</button>
           <a href="/cms" target="_blank" class="text-brand-700 hover:underline">內容管理（課程與時段設定）</a>
           <a href="/" target="_blank" class="text-brand-700 hover:underline">網站首頁</a>
         </div>
@@ -97,7 +99,7 @@ import '../../styles/global.css';
       const tw = (iso: string | null) =>
         iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
 
-      let config: { actor: string; payment_mode: string; mail_mode: string; sms_mode: string; statuses: string[] };
+      let config: { actor: string; payment_mode: string; mail_mode: string; sms_mode: string; statuses: string[]; sms_points: number | null };
       const filters = $<HTMLFormElement>('filters');
 
       async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -190,6 +192,11 @@ import '../../styles/global.css';
       });
 
       document.addEventListener('click', async (e) => {
+        const preview = (e.target as HTMLElement).closest<HTMLElement>('[data-preview]');
+        if (preview) {
+          sendTestEmail(preview.dataset.preview);
+          return;
+        }
         const el = (e.target as HTMLElement).closest<HTMLElement>('[data-mock],[data-history],[data-filter-session],[data-close]');
         if (!el) return;
         if (el.dataset.mock) {
@@ -219,7 +226,8 @@ import '../../styles/global.css';
         $('history-title').textContent = `報名編號 ${id} 的紀錄`;
         $('history-body').innerHTML = [
           section('通知（Email／簡訊）', h.notifications.map((n) => `<div class="mb-3 rounded-xl bg-slate-50 p-3">
-            <p class="text-xs text-ink-500">${tw(n.created_at)}・${n.channel === 'email' ? 'Email' : '簡訊'} → ${esc(n.recipient)}・<b>${resultLabel[n.result] ?? esc(n.result)}</b></p>
+            <p class="flex flex-wrap items-center gap-2 text-xs text-ink-500">${tw(n.created_at)}・${n.channel === 'email' ? 'Email' : '簡訊'} → ${esc(n.recipient)}・<b>${resultLabel[n.result] ?? esc(n.result)}</b>
+              ${n.channel === 'email' ? `<button type="button" data-preview="${n.id}" class="rounded border border-black/15 bg-white px-2 py-0.5 text-ink-700 hover:bg-slate-100">寄一份給我看</button>` : ''}</p>
             ${n.subject ? `<p class="mt-1 font-bold">${esc(n.subject)}</p>` : ''}<pre class="mt-1 font-sans whitespace-pre-wrap">${esc(n.body)}</pre></div>`)),
           section('入帳紀錄', h.payments.map((p) => `<p class="mb-1">${tw(p.created_at)}・${money(p.amount)}・${esc(p.result)}・序號 ${esc(p.ref)}</p>`)),
           section('操作紀錄', h.audit.map((a) => `<p class="mb-1">${tw(a.created_at)}・${esc(a.actor)}・${esc(a.action)}：${esc(a.detail)}</p>`)),
@@ -233,17 +241,46 @@ import '../../styles/global.css';
       });
       $('export').addEventListener('click', () => (location.href = `/api/admin/export.csv?${query()}`));
 
-      // 寄測試信：確認 Brevo 寄信串接（不論是否為測試模式，都會真的寄出這一封）
-      $('test-email').addEventListener('click', async () => {
-        const to = prompt('寄一封測試信到哪個 Email？（會真的寄出）');
+      // 發測試簡訊：確認三竹串接（會真的發出並扣點數）
+      $('test-sms').addEventListener('click', async () => {
+        const to = prompt('發一則測試簡訊到哪支手機？（會真的發出並扣三竹點數）');
         if (!to) return;
         try {
-          await api('/test-email', { method: 'POST', body: JSON.stringify({ to }) });
+          const out = await api<{ account_point: number | null }>('/test-sms', { method: 'POST', body: JSON.stringify({ to }) });
+          alert(`已發送${out.account_point !== null ? `，三竹剩餘點數 ${out.account_point}` : ''}`);
+        } catch (e) {
+          alert(`發送失敗：${(e as Error).message}`);
+        }
+      });
+
+      // 寄測試信／預覽通知信：用 Brevo 真的寄出一封（不論是否為測試模式）
+      // 寄件人需先在 Brevo 驗證過；網域驗證完成前，可以先用自己驗證過的信箱當寄件人
+      const remember = (key: string, value?: string) => {
+        try {
+          if (value !== undefined) localStorage.setItem(key, value);
+          return localStorage.getItem(key) ?? '';
+        } catch {
+          return value ?? '';
+        }
+      };
+      async function sendTestEmail(notificationId?: string) {
+        const to = prompt('寄到哪個 Email？（會真的寄出）', remember('test-email-to'));
+        if (!to) return;
+        const from = prompt('寄件人（需在 Brevo 驗證過；留空則用「故事講堂 <service@storykids.com.tw>」）', remember('test-email-from'));
+        if (from === null) return;
+        remember('test-email-to', to);
+        remember('test-email-from', from);
+        try {
+          await api('/test-email', {
+            method: 'POST',
+            body: JSON.stringify({ to, from: from || undefined, notification_id: notificationId ? Number(notificationId) : undefined }),
+          });
           alert(`已寄出，請到 ${to} 收信（也看一下垃圾信件匣）`);
         } catch (e) {
           alert(`寄送失敗：${(e as Error).message}`);
         }
-      });
+      }
+      $('test-email').addEventListener('click', () => sendTestEmail());
 
       (async () => {
         try {
@@ -253,6 +290,11 @@ import '../../styles/global.css';
           return;
         }
         $('actor').textContent = `登入：${config.actor}`;
+        if (config.sms_points !== null) {
+          $('sms-points').textContent = `簡訊點數 ${config.sms_points}`;
+          $('sms-points').classList.toggle('text-red-600', config.sms_points < 200);
+          $('sms-points').classList.remove('hidden');
+        }
         const modes = [config.payment_mode, config.mail_mode, config.sms_mode];
         if (modes.includes('mock')) {
           $('mode-badge').textContent = '測試模式：繳費帳號為假資料、Email 與簡訊不會寄出（可在「紀錄」查看內容）';

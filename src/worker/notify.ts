@@ -17,8 +17,13 @@ async function deliver(env: Env, registrationId: number, msg: Message): Promise<
   let body = msg.body;
   if (mode === 'live') {
     try {
-      if (msg.channel === 'email') await sendEmailLive(env, msg);
-      else await sendSmsLive(env, msg);
+      if (msg.channel === 'email') {
+        await sendEmailLive(env, msg);
+      } else {
+        const { accountPoint } = await sendSmsLive(env, msg, registrationId);
+        // 記錄剩餘點數，後台可以看到（點數用完簡訊就停）
+        if (accountPoint !== undefined) body = `${msg.body}\n\n［三竹剩餘點數 ${accountPoint}］`;
+      }
       result = 'sent';
     } catch (err) {
       console.error('通知寄送失敗', err);
@@ -43,13 +48,13 @@ export function parseAddress(value: string): { name?: string; email: string } {
 
 // Email 正式寄送：Brevo 交易信 API（https://developers.brevo.com/reference/sendtransacemail）
 // 寄件網域需先在 Brevo 驗證（DNS 加 DKIM／SPF），否則可能被拒絕或進垃圾信件匣
-export async function sendEmailLive(env: Env, msg: Message): Promise<void> {
+export async function sendEmailLive(env: Env, msg: Message, opts: { from?: string } = {}): Promise<void> {
   if (!env.BREVO_API_KEY) throw new Error('尚未設定 BREVO_API_KEY');
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      sender: parseAddress(env.MAIL_FROM),
+      sender: parseAddress(opts.from || env.MAIL_FROM),
       to: [{ email: msg.recipient }],
       ...(env.MAIL_REPLY_TO ? { replyTo: parseAddress(env.MAIL_REPLY_TO) } : {}),
       subject: msg.subject ?? '故事講堂通知',
@@ -63,19 +68,54 @@ export async function sendEmailLive(env: Env, msg: Message): Promise<void> {
   }
 }
 
-// 後台「寄測試信」：不論 MAIL_MODE，直接用 Brevo 寄一封信，用來確認串接與寄件網域設定
-export async function sendTestEmail(env: Env, to: string): Promise<void> {
-  await sendEmailLive(env, {
-    channel: 'email',
-    recipient: to,
+// 後台「寄測試信」：不論 MAIL_MODE，直接用 Brevo 寄一封信，用來確認串接、寄件人設定，或預覽家長收到的通知信
+// from：寄件人（需先在 Brevo 驗證過）；content：要寄的內容（未提供則寄一封簡單的測試信）
+export async function sendTestEmail(env: Env, to: string, opts: { from?: string; content?: { subject: string; body: string } } = {}): Promise<void> {
+  const content = opts.content ?? {
     subject: '【故事講堂】寄信測試',
     body: ['這是故事講堂網站的寄信測試。', '', '收到這封信代表 Brevo 串接成功。', '請確認：這封信不在垃圾信件匣、寄件人顯示「故事講堂」。'].join('\n'),
-  });
+  };
+  await sendEmailLive(env, { channel: 'email', recipient: to, subject: content.subject, body: content.body }, { from: opts.from });
 }
 
-// TODO：拿到三竹簡訊 API 帳號後實作
-async function sendSmsLive(_env: Env, _msg: Message): Promise<void> {
-  throw new Error('三竹簡訊尚未串接');
+// ---- 三竹簡訊 ----
+const MITAKE_DEFAULT_URL = 'https://smsapi.mitake.com.tw/api/mtk/SmSend';
+// 三竹回應的狀態碼：0 預約傳送中、1／2 已送達業者、4 已送達手機 → 視為成功；其餘（英文字母等）為錯誤
+const MITAKE_OK = ['0', '1', '2', '4'];
+
+// 同一則簡訊的識別碼（三竹以 clientid 防止 12 小時內重複發送），最長 36 字元
+async function smsClientId(registrationId: number | null, body: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body)));
+  const hex = [...digest.slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `sk${registrationId ?? 0}-${hex}`.slice(0, 36);
+}
+
+// 簡訊正式發送：三竹簡訊 HTTP API（SmSend）。回傳剩餘點數（三竹有回傳時）
+export async function sendSmsLive(env: Env, msg: Message, registrationId: number | null = null): Promise<{ accountPoint?: number }> {
+  if (!env.MITAKE_USERNAME || !env.MITAKE_PASSWORD) throw new Error('尚未設定三竹帳號密碼（MITAKE_USERNAME／MITAKE_PASSWORD）');
+  const url = new URL(env.MITAKE_API_URL || MITAKE_DEFAULT_URL);
+  url.searchParams.set('CharsetURL', 'UTF8');
+  const form = new URLSearchParams({
+    username: env.MITAKE_USERNAME,
+    password: env.MITAKE_PASSWORD,
+    dstaddr: msg.recipient,
+    smbody: msg.body,
+    clientid: await smsClientId(registrationId, msg.body),
+  });
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form });
+  const text = await res.text();
+  const status = text.match(/statuscode=(\w+)/)?.[1];
+  const point = text.match(/AccountPoint=(\d+)/)?.[1];
+  // 錯誤訊息只記錄三竹的回應內容（不含帳號密碼）
+  if (!res.ok || !status || !MITAKE_OK.includes(status)) {
+    throw new Error(`三竹簡訊發送失敗（HTTP ${res.status}，statuscode=${status ?? '無'}）：${text.replace(/\s+/g, ' ').slice(0, 200)}`);
+  }
+  return { accountPoint: point ? Number(point) : undefined };
+}
+
+// 後台「發測試簡訊」：不論 SMS_MODE，直接發一則（會扣點數）
+export async function sendTestSms(env: Env, phone: string): Promise<{ accountPoint?: number }> {
+  return sendSmsLive(env, { channel: 'sms', recipient: phone, body: `【故事講堂】簡訊測試 ${formatTw(nowIso())}，收到代表串接成功。` });
 }
 
 const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
