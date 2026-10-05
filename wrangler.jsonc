@@ -36,8 +36,8 @@
     // 正式網域：在這些網域上，若 PAYMENT_MODE 不是 live 就不開放報名（避免家長拿到假的繳費帳號）
     "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw",
     // Cloudflare Turnstile 防機器人的 site key（公開值）；secret 用 `wrangler secret put TURNSTILE_SECRET_KEY`
-    // 尚未在 Cloudflare 建立 Turnstile 時留空（會略過驗證，仍有次數限制）
-    "TURNSTILE_SITE_KEY": "",
+    // 2026-10-05 建立（widget：故事講堂報名）；上線時要在 Cloudflare Turnstile 的 Hostnames 加上 storykids.com.tw
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFN4uNb2C_uM5LaQ",
     // 測試模式：mock = 不真的寄信／發簡訊、使用假虛擬帳號；正式串接後改為 live
     "MAIL_MODE": "mock",
     "SMS_MODE": "mock",

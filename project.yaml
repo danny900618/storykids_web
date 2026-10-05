@@ -356,8 +356,9 @@ tasks:
     title: 後端自動化測試（Vitest + @cloudflare/vitest-plugin，43 項）與 GitHub Actions 自動執行
     status: done
   - id: T21
-    title: 正式開放報名前：建立 Cloudflare Turnstile（site key 填 wrangler.jsonc、secret 用 wrangler secret put）
-    status: todo
+    title: 建立 Cloudflare Turnstile（site key 填 wrangler.jsonc、secret 用 wrangler secret put）
+    status: done
+    notes: 2026-10-05 完成（widget：故事講堂報名）。上線時在 Turnstile 的 Hostnames 加上 storykids.com.tw、www.storykids.com.tw
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
@@ -403,3 +404,5 @@ changelog:
       test/ 共 43 項測試全數通過，push 時由 GitHub Actions 執行；新增 .npmrc（legacy-peer-deps）。
   - date: 2026-10-02
     note: Email 串接 Brevo（sendEmailLive、寄送失敗記錄原因、後台寄測試信），新增 8 項測試（共 51 項通過）；MAIL_MODE 維持 mock。
+  - date: 2026-10-05
+    note: 啟用 Cloudflare Turnstile（site key 寫入 wrangler.jsonc，secret 已設定）。
