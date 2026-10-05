@@ -17,7 +17,7 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
   <ul class="mt-6 space-y-4">
     {
       sessions.map((s) => (
-        <li class="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:flex-row sm:items-center" data-session={s.code}>
+        <li class="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:flex-row sm:items-center" data-session={s.code ?? ''}>
           <div class="flex-1">
             <p class="text-lg font-bold text-ink-900">{s.name}</p>
             {(s.period || s.time) && (
@@ -40,8 +40,8 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
               </span>
             </p>
           </div>
-          {s.open ? (
-            <a href={`/register?session=${encodeURIComponent(s.code)}`} class="btn-primary shrink-0 px-6" data-register>
+          {s.open && s.code ? (
+            <a href={`/register?session=${encodeURIComponent(s.code!)}`} class="btn-primary shrink-0 px-6" data-register>
               我要預約
             </a>
           ) : (

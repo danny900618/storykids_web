@@ -102,17 +102,20 @@ collections:
       # ---- 上課時段 ----
       - { name: location, label: 上課地點（時段沒有另外填寫時使用；也會出現在報名通知信）, widget: string, default: 故事講堂, required: false }
       - name: sessions
-        label: 上課時段（家長選擇時段線上報名）
+        label: 上課時段（家長選擇時段線上報名；⚠️ 已有人報名的時段請勿刪除，要停止報名請取消勾選「開放報名」）
         label_singular: 時段
         widget: list
         required: false
         collapsed: true
         summary: "{{fields.name}}｜{{fields.period}}｜名額 {{fields.capacity}}"
         fields:
+          # 時段代號：報名資料對應時段的依據。由系統自動產生、不可修改（新增時段時自動填入）
           - name: code
-            label: 時段代號（小寫英文、數字、-，例如 summer115-a；⚠️ 已有人報名後請勿修改或刪除此時段）
-            widget: string
-            pattern: ["^[a-z0-9-]+$", "只能使用小寫英文、數字與 -"]
+            label: 時段代號（系統自動產生，不需填寫）
+            widget: uuid
+            prefix: s-
+            use_b32_encoding: true
+            readonly: true
           - { name: name, label: 時段名稱（例如：A 梯、週三班）, widget: string }
           - { name: period, label: 上課期間（例如：2026-08-24~2026-08-28）, widget: string, required: false }
           - { name: time, label: 上課時間（例如：09:00-16:30）, widget: string, required: false }

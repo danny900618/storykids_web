@@ -6,7 +6,8 @@ import { getCourses } from '../../lib/content';
 export const GET: APIRoute = async () => {
   const courses = await getCourses();
   const sessions = courses.flatMap((c) =>
-    c.data.sessions.map((s) => ({
+    // 沒有代號的時段不開放報名（不列入）
+    c.data.sessions.flatMap((s) => (s.code ? [{ ...s, code: s.code }] : [])).map((s) => ({
       code: s.code,
       name: s.name,
       period: s.period ?? '',

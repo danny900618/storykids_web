@@ -87,11 +87,15 @@ const courses = defineCollection({
     // ---- 上課時段 ----
     // 上課地點（時段沒有另外填寫時使用），也會出現在報名通知信
     location: optionalText,
-    // 家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，已有人報名後不可修改
+    // 家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，由內容後台自動產生、不可修改
+    // 萬一缺少代號（例如後台沒有成功產生），該時段只顯示不開放報名，不會讓網站建置失敗
     sessions: z
       .array(
         z.object({
-          code: z.string().regex(/^[a-z0-9-]+$/, '時段代號只能用小寫英文、數字與 -'),
+          code: z
+            .string()
+            .nullish()
+            .transform((v) => (v && /^[a-z0-9-]+$/.test(v.trim()) ? v.trim() : undefined)),
           name: z.string(),
           period: optionalText, // 上課期間，例如「2026-08-24~2026-08-28」
           time: optionalText, // 上課時間，例如「09:00-16:30」

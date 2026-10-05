@@ -22,8 +22,8 @@ export function registrationHref(override?: string): string {
 }
 
 // 課程的報名按鈕：有開放的上課時段 → 課程頁的時段區塊；否則用外部報名連結
-export function courseRegistrationHref(course: { id: string; data: { sessions: { open: boolean }[]; registration_url?: string } }): string {
-  return course.data.sessions.some((s) => s.open) ? `/courses/${course.id}#sessions` : registrationHref(course.data.registration_url);
+export function courseRegistrationHref(course: { id: string; data: { sessions: { open: boolean; code?: string }[]; registration_url?: string } }): string {
+  return course.data.sessions.some((s) => s.open && s.code) ? `/courses/${course.id}#sessions` : registrationHref(course.data.registration_url);
 }
 
 // 是否為外部連結（外部連結以新分頁開啟）

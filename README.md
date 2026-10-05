@@ -70,7 +70,7 @@
 | 資料在哪 | GitHub | Cloudflare D1 |
 | 設定檔 | [public/cms/config.yml](public/cms/config.yml)、登入 [src/worker/cms-auth.ts](src/worker/cms-auth.ts) | [src/worker/](src/worker/)、[src/pages/admin/](src/pages/admin/) |
 
-兩邊以「**時段代號**」串接：建置時把所有上課時段輸出成 `/data/sessions.json`，後端依此判斷名額與應繳金額。**已有人報名的時段，不要在 CMS 刪除或修改代號**（後台會顯示警告）。
+兩邊以「**時段代號**」串接：建置時把所有上課時段輸出成 `/data/sessions.json`，後端依此判斷名額與應繳金額。時段代號由內容後台**自動產生、不可修改**（Sveltia `uuid` 欄位）；萬一缺少代號，該時段只顯示、不開放報名。**已有人報名的時段不要刪除**（要停止報名請取消「開放報名」；若被刪除，報名管理後台會顯示警告，原報名資料仍保留）。
 
 ## 報名流程
 
