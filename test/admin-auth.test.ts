@@ -104,6 +104,27 @@ describe('後台操作', () => {
     expect((await getRegistration(reg.id))!.review_note).toBeNull();
   });
 
+  it('操作紀錄：進入後台（30 分鐘內只記一次）、匯出名單、模擬入帳都會記錄使用者', async () => {
+    await call(adminRequest('/api/admin/config'));
+    await call(adminRequest('/api/admin/config'));
+    const reg = (await register('two-seats')).body;
+    await call(adminRequest(`/api/admin/registrations/${reg.id}/mock-payment`, { method: 'POST', body: '{}' }));
+    await call(adminRequest('/api/admin/export.csv?session=two-seats'));
+    const res = await call(adminRequest('/api/admin/audit'));
+    const { items, actors } = (await res.json()) as { items: { actor: string; action: string; detail: string; registration_id: number | null }[]; actors: string[] };
+    expect(items.filter((i) => i.action === '進入後台')).toHaveLength(1);
+    expect(items.find((i) => i.action === '模擬入帳')).toMatchObject({ actor: 'password:staff', registration_id: reg.id });
+    expect(items.find((i) => i.action === '匯出名單')!.detail).toContain('session=two-seats');
+    expect(items.some((i) => i.action === '自動對帳' && i.actor === 'system')).toBe(true);
+    expect(actors).toContain('password:staff');
+    // 新到舊排序
+    expect(items[0].action).toBe('匯出名單');
+  });
+
+  it('操作紀錄需要登入', async () => {
+    expect((await call(new Request(`${ORIGIN}/api/admin/audit`))).status).toBe(401);
+  });
+
   it('匯出 CSV：Excel 可直接開啟（BOM），並防止公式注入', async () => {
     await register('two-seats', { student_name: '=HYPERLINK("http://evil")' });
     const res = await call(adminRequest('/api/admin/export.csv'));

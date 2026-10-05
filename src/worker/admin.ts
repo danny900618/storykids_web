@@ -11,6 +11,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
   const method = request.method;
 
   if (method === 'GET' && path === '/config') {
+    await logEntry(env, actor);
     return json({
       actor,
       payment_mode: env.PAYMENT_MODE,
@@ -28,7 +29,8 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
   if (method === 'POST' && path === '/test-sms') return testSms(request, env, actor);
   if (method === 'GET' && path === '/sessions') return listSessions(request, env);
   if (method === 'GET' && path === '/registrations') return json(await queryRegistrations(env, url.searchParams));
-  if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams);
+  if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams, actor);
+  if (method === 'GET' && path === '/audit') return listAudit(env, url.searchParams);
 
   const m = path.match(/^\/registrations\/(\d+)(\/[a-z-]+)?$/);
   if (m) {
@@ -138,10 +140,12 @@ async function mockPayment(request: Request, env: Env, id: number, actor: string
   const body = (await request.json().catch(() => ({}))) as { amount?: unknown };
   const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
   if (!reg?.va_account) return json({ error: '這筆報名沒有繳費帳號（候補不會產生帳號）' }, 400);
+  const amount = Number.isInteger(body.amount) ? (body.amount as number) : reg.amount;
+  await audit(env, id, actor, '模擬入帳', `模擬入帳 ${amount} 元`);
   const out = await reconcile(env, {
     ref: `MOCK-${id}-${Date.now()}`,
     vaAccount: reg.va_account,
-    amount: Number.isInteger(body.amount) ? (body.amount as number) : reg.amount,
+    amount,
     raw: JSON.stringify({ mock: true, by: actor }),
   });
   return json(out);
@@ -158,8 +162,10 @@ async function history(env: Env, id: number): Promise<Response> {
 }
 
 // 匯出 CSV（UTF-8 BOM，Excel 直接開啟不會亂碼）
-async function exportCsv(env: Env, params: URLSearchParams): Promise<Response> {
+async function exportCsv(env: Env, params: URLSearchParams, actor: string): Promise<Response> {
   const rows = await queryRegistrations(env, params);
+  const filters = [...params.entries()].map(([k, v]) => `${k}=${v}`).join('、') || '全部';
+  await audit(env, null, actor, '匯出名單', `條件：${filters}；共 ${rows.length} 筆`);
   const header = ['報名編號', '報名時間', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '家長姓名', '學校', '年級', '手機', 'Email', '備註', '應繳金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '需人工確認'];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
@@ -239,4 +245,41 @@ async function latestSmsPoints(env: Env): Promise<number | null> {
   ).first<{ body: string }>();
   const m = row?.body.match(/三竹剩餘點數 (\d+)/);
   return m ? Number(m[1]) : null;
+}
+
+async function audit(env: Env, registrationId: number | null, actor: string, action: string, detail: string) {
+  await env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .bind(registrationId, actor, action, detail, nowIso())
+    .run();
+}
+
+// 進入後台：同一位使用者 30 分鐘內只記一次，避免紀錄被重新整理洗版
+async function logEntry(env: Env, actor: string) {
+  const since = new Date(Date.now() - 30 * 60_000).toISOString();
+  const recent = await env.DB.prepare(`SELECT id FROM audit_log WHERE actor = ? AND action = '進入後台' AND created_at > ? LIMIT 1`)
+    .bind(actor, since)
+    .first();
+  if (!recent) await audit(env, null, actor, '進入後台', '開啟報名管理後台');
+}
+
+// 操作紀錄列表（新到舊），可依使用者篩選；before = 上一頁最後一筆的 id（載入更多）
+async function listAudit(env: Env, params: URLSearchParams): Promise<Response> {
+  const where: string[] = [];
+  const binds: unknown[] = [];
+  const actor = params.get('actor');
+  const before = Number(params.get('before'));
+  if (actor) { where.push('a.actor = ?'); binds.push(actor); }
+  if (Number.isInteger(before) && before > 0) { where.push('a.id < ?'); binds.push(before); }
+  const limit = Math.min(Math.max(Number(params.get('limit')) || 50, 1), 200);
+  const { results } = await env.DB.prepare(
+    `SELECT a.id, a.registration_id, a.actor, a.action, a.detail, a.created_at,
+            r.student_name, r.course_title, r.session_name
+     FROM audit_log a LEFT JOIN registrations r ON r.id = a.registration_id
+     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+     ORDER BY a.id DESC LIMIT ${limit}`,
+  )
+    .bind(...binds)
+    .all();
+  const actors = await env.DB.prepare('SELECT DISTINCT actor FROM audit_log ORDER BY actor').all<{ actor: string }>();
+  return json({ items: results, actors: actors.results.map((r) => r.actor) });
 }
