@@ -1,7 +1,7 @@
 // 報名管理後台 API（/api/admin/*，已通過登入驗證才會進來）
 import type { Env, Registration } from './env';
 import { STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
-import { countBySession, loadSessions } from './sessions';
+import { countBySession, findSession, loadSessions } from './sessions';
 import { PAID_STATUSES, generateVirtualAccount, reconcile } from './payment';
 import { notifyPromoted, parseAddress, sendTestEmail, sendTestSms } from './notify';
 
@@ -127,7 +127,7 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
     ),
   ]);
 
-  if (promoted) await notifyPromoted(env, next);
+  if (promoted) await notifyPromoted(env, next, await findSession(env, request, next.session_code));
   return json({ ...next, review_note: null, updated_at: now, expired: isExpired(next) });
 }
 
@@ -196,13 +196,13 @@ async function testEmail(request: Request, env: Env, actor: string): Promise<Res
   const from = typeof body.from === 'string' ? body.from.trim() : '';
   if (from && !isEmail(parseAddress(from).email)) return json({ error: '寄件人 Email 格式錯誤' }, 400);
   // 預覽某一封通知信：用系統記錄的同一份內容寄給自己
-  let content: { subject: string; body: string } | undefined;
+  let content: { subject: string; body: string; html: string | null } | undefined;
   if (body.notification_id !== undefined) {
-    const n = await env.DB.prepare(`SELECT subject, body FROM notifications WHERE id = ? AND channel = 'email'`)
+    const n = await env.DB.prepare(`SELECT subject, body, html FROM notifications WHERE id = ? AND channel = 'email'`)
       .bind(Number(body.notification_id))
-      .first<{ subject: string | null; body: string }>();
+      .first<{ subject: string | null; body: string; html: string | null }>();
     if (!n) return json({ error: '找不到這封通知信' }, 404);
-    content = { subject: `［預覽］${n.subject ?? ''}`, body: n.body.replace(/\n\n［寄送失敗］[\s\S]*$/, '') };
+    content = { subject: `［預覽］${n.subject ?? ''}`, body: n.body.replace(/\n\n［寄送失敗］[\s\S]*$/, ''), html: n.html };
   }
   try {
     await sendTestEmail(env, to, { from: from || undefined, content });

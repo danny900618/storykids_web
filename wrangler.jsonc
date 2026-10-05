@@ -43,6 +43,10 @@
     "SMS_MODE": "mock",
     "PAYMENT_MODE": "mock",
     "MAIL_FROM": "故事講堂 <service@storykids.com.tw>",
+    // 通知信裡的 Logo 與網站連結（上線切換網域後改為 https://storykids.com.tw）
+    "PUBLIC_SITE_URL": "https://storykids-web.c0981985611.workers.dev",
+    // 通知信防詐騙提醒裡的聯絡電話
+    "CONTACT_PHONE": "04-23196868",
     // 有人報名時通知的公司信箱
     "COMPANY_EMAIL": "service@storykids.com.tw",
     // 三竹簡訊發送網址（企業帳號）；個人帳號改為 http://smsb2c.mitake.com.tw/b2c/mtk/SmSend，以三竹提供的文件為準

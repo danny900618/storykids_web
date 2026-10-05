@@ -228,7 +228,11 @@ import '../../styles/global.css';
           section('通知（Email／簡訊）', h.notifications.map((n) => `<div class="mb-3 rounded-xl bg-slate-50 p-3">
             <p class="flex flex-wrap items-center gap-2 text-xs text-ink-500">${tw(n.created_at)}・${n.channel === 'email' ? 'Email' : '簡訊'} → ${esc(n.recipient)}・<b>${resultLabel[n.result] ?? esc(n.result)}</b>
               ${n.channel === 'email' ? `<button type="button" data-preview="${n.id}" class="rounded border border-black/15 bg-white px-2 py-0.5 text-ink-700 hover:bg-slate-100">寄一份給我看</button>` : ''}</p>
-            ${n.subject ? `<p class="mt-1 font-bold">${esc(n.subject)}</p>` : ''}<pre class="mt-1 font-sans whitespace-pre-wrap">${esc(n.body)}</pre></div>`)),
+            ${n.subject ? `<p class="mt-1 font-bold">${esc(n.subject)}</p>` : ''}
+            ${n.html
+              ? `<iframe sandbox="" srcdoc="${esc(n.html)}" title="信件預覽" class="mt-2 h-[520px] w-full rounded-lg border border-black/10 bg-white"></iframe>
+                 <details class="mt-2"><summary class="cursor-pointer text-xs text-ink-500">純文字版</summary><pre class="mt-1 font-sans whitespace-pre-wrap">${esc(n.body)}</pre></details>`
+              : `<pre class="mt-1 font-sans whitespace-pre-wrap">${esc(n.body)}</pre>`}</div>`)),
           section('入帳紀錄', h.payments.map((p) => `<p class="mb-1">${tw(p.created_at)}・${money(p.amount)}・${esc(p.result)}・序號 ${esc(p.ref)}</p>`)),
           section('操作紀錄', h.audit.map((a) => `<p class="mb-1">${tw(a.created_at)}・${esc(a.actor)}・${esc(a.action)}：${esc(a.detail)}</p>`)),
         ].join('');

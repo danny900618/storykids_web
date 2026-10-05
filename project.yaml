@@ -246,6 +246,7 @@ open_questions:
     owner: 補習班
   - id: Q12
     question: 台新虛擬帳號規格書：編碼規則、檢查碼演算法、入帳通知方式（推送 or 對帳檔）、加密與回應格式
+    sample: 舊系統通知信中的帳號範例 96989416652781（96989 + 9 碼，共 14 碼）
     owner: 補習班 / 舊外包 / 台新
     phase: phase2
   - id: Q13
@@ -410,3 +411,7 @@ changelog:
     note: 啟用 Cloudflare Turnstile（site key 寫入 wrangler.jsonc，secret 已設定）。
   - date: 2026-10-05
     note: 三竹簡訊串接（sendSmsLive、後台發測試簡訊與剩餘點數顯示），新增 7 項測試（共 58 項通過）；SMS_MODE 維持 mock。
+  - date: 2026-10-05
+    note: >
+      通知信改為 HTML 版型，沿用舊站「完成報名通知信」（橘色 Logo 頁首、課程類別／課程主題／費用說明／上課週期／上課期間／上課地點、繳款資訊、防詐騙提醒）；
+      課程新增 fee_note（費用說明）、location（上課地點）；migration 0003 記錄信件 HTML，後台「紀錄」可直接預覽。舊站信件的「信箱驗證」連結未實作（待確認是否需要）。

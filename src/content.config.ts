@@ -68,6 +68,10 @@ const courses = defineCollection({
     order: orderNumber,
     // 個別課程的報名連結；未填寫時使用網站設定中的預設報名連結（有設定上課時段時改用線上報名）
     registration_url: optionalText,
+    // 費用說明（例如退費規定），會出現在報名通知信
+    fee_note: optionalText,
+    // 上課地點，會出現在報名通知信
+    location: optionalText,
     // 上課時段：家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，已有人報名後不可修改
     sessions: z
       .array(

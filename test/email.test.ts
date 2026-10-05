@@ -45,11 +45,22 @@ describe('Email 寄送', () => {
     const parent = brevoCalls.find((c) => (c.body.to as { email: string }[])[0].email === data.email)!;
     expect(parent.headers.get('api-key')).toBe('test-brevo-key');
     expect(parent.body.sender).toEqual({ name: '故事講堂', email: 'service@storykids.com.tw' });
-    expect(String(parent.body.subject)).toContain('報名成功');
+    expect(parent.body.subject).toBe('故事講堂 - 完成報名通知信');
     expect(String(parent.body.textContent)).toContain('96989');
+    const html = String(parent.body.htmlContent);
+    for (const text of ['115夏令營', '五天主題課程30小時', '含教材與午餐', '繳款資訊', '812 台新銀行', '詐騙']) expect(html).toContain(text);
     expect(brevoCalls.some((c) => (c.body.to as { email: string }[])[0].email === 'office@example.com')).toBe(true);
     const { results } = await db().prepare(`SELECT result FROM notifications WHERE channel = 'email'`).all<{ result: string }>();
     expect(results.every((r) => r.result === 'sent')).toBe(true);
+  });
+
+  it('信件 HTML 會跳脫家長填的內容（防止插入惡意 HTML）', async () => {
+    const data = validRegistration('two-seats', { student_name: '<script>alert(1)</script>', parent_name: '<b>王</b>' });
+    await call(registerRequest(data), live);
+    const html = String(brevoCalls.find((c) => (c.body.to as { email: string }[])[0].email === data.email)!.body.htmlContent);
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).not.toContain('<b>王</b>');
   });
 
   it('Brevo 寄送失敗：報名照常成功，通知紀錄標示失敗原因', async () => {
@@ -85,7 +96,7 @@ describe('後台寄測試信', () => {
 
   it('預覽某一封通知信：寄出跟家長收到的同一份內容', async () => {
     const { body: reg } = await register('two-seats');
-    const n = await db().prepare(`SELECT id, subject FROM notifications WHERE registration_id = ? AND channel = 'email' AND subject LIKE '%報名成功%'`).bind(reg.id).first<{ id: number; subject: string }>();
+    const n = await db().prepare(`SELECT id, subject FROM notifications WHERE registration_id = ? AND channel = 'email' AND subject LIKE '%完成報名%'`).bind(reg.id).first<{ id: number; subject: string }>();
     const res = await call(
       adminRequest('/api/admin/test-email', { method: 'POST', body: JSON.stringify({ to: 'me@example.com', notification_id: n!.id }) }),
       live,

@@ -15,6 +15,10 @@ export const GET: APIRoute = async () => {
       open: s.open,
       course_id: c.id,
       course_title: c.data.title,
+      category: c.data.category,
+      schedule: c.data.schedule ?? '',
+      fee_note: c.data.fee_note ?? '',
+      location: c.data.location ?? '故事講堂',
     })),
   );
 

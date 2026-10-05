@@ -81,6 +81,8 @@ collections:
       - { name: published, label: 啟用, widget: boolean, default: true, required: false }
       - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
       - { name: registration_url, label: 外部報名連結（選填；有設定下方「上課時段」時會改用網站的線上報名，此欄不需填）, widget: string, required: false }
+      - { name: fee_note, label: 費用說明（會出現在報名通知信，例如：費用包含教材與午餐、退費規定）, widget: text, required: false }
+      - { name: location, label: 上課地點（會出現在報名通知信）, widget: string, default: 故事講堂, required: false }
       - name: sessions
         label: 上課時段（家長在課程頁選擇時段線上報名）
         label_singular: 時段

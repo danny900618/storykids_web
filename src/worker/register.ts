@@ -155,7 +155,7 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
   }
 
   // 通知在背景處理，不讓家長等待
-  ctx.waitUntil(notifyRegistered(env, reg, waitlistPosition).catch((err) => console.error('通知失敗', err)));
+  ctx.waitUntil(notifyRegistered(env, reg, waitlistPosition, session).catch((err) => console.error('通知失敗', err)));
 
   return json({
     id: reg.id,

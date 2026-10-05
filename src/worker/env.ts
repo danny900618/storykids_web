@@ -28,6 +28,8 @@ export interface Env {
 
   MAIL_FROM: string; // 寄件人，例如「故事講堂 <service@storykids.com.tw>」
   MAIL_REPLY_TO?: string; // 家長回信的地址（選填，未設定則回到寄件人）
+  PUBLIC_SITE_URL?: string; // 通知信裡的 Logo 與網站連結（上線後改為 https://storykids.com.tw）
+  CONTACT_PHONE?: string; // 通知信防詐騙提醒裡的聯絡電話
   COMPANY_EMAIL: string; // 有人報名時通知的公司信箱
   BREVO_API_KEY?: string; // Brevo 寄信 API 金鑰：`wrangler secret put BREVO_API_KEY`
 
@@ -63,6 +65,11 @@ export interface Session {
   open: boolean;
   course_id: string;
   course_title: string;
+  // 課程層級資訊（通知信使用）
+  category?: string; // 課程類別，例如「學期班（11509學期）」「115夏令營」
+  schedule?: string; // 上課週期，例如「五天主題課程30小時」
+  fee_note?: string; // 費用說明（退費規定等）
+  location?: string; // 上課地點
 }
 
 export interface Registration {
