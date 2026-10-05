@@ -1,4 +1,6 @@
 ---
+// 課程頁：沿用舊站的固定模板與區塊順序（欄位空白的區塊／列自動隱藏）
+// 課程照片 → 培養能力 → 課程說明 → 上課方式 → 課程學費 → 影片分享 → 開課訊息 → 上課時段 → 其他補充說明
 import type { GetStaticPaths } from 'astro';
 import { render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -6,7 +8,7 @@ import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import SessionList from '../../components/SessionList.astro';
 import { getCourses } from '../../lib/content';
-import { courseRegistrationHref, isExternal, excerpt } from '../../lib/site';
+import { courseRegistrationHref, isExternal, excerpt, youtubeId, site, telHref } from '../../lib/site';
 
 export const getStaticPaths = (async () => {
   const all = await getCourses();
@@ -14,37 +16,179 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths;
 
 const { course } = Astro.props;
-const { title, category, audience, schedule, class_size, price, summary, cover, sessions } = course.data;
+const d = course.data;
 const { Content } = await render(course);
+const hasBody = !!course.body?.trim();
 const regHref = courseRegistrationHref(course);
+const videoId = youtubeId(d.video);
+const photos = d.images.length ? d.images : d.cover ? [d.cover] : [];
 
-// 課程資訊表：有填寫的欄位才顯示
-const facts = [
-  { label: '班別', value: category },
-  { label: '適合對象', value: audience },
-  { label: '上課時間', value: schedule },
-  { label: '班級人數', value: class_size },
-  { label: '費用', value: price },
-].filter((f) => f.value);
+type Row = { label: string; value?: string };
+const rows = (items: Row[]) => items.filter((r) => r.value);
+const infoSections = [
+  {
+    title: '課程說明',
+    items: rows([
+      { label: '課程目標', value: d.goal },
+      { label: '適合程度', value: d.level },
+      { label: '課程內容', value: d.content },
+      { label: '表達練習', value: d.practice },
+    ]),
+  },
+  {
+    title: '上課方式',
+    items: rows([
+      { label: '上課週期', value: d.cycle },
+      { label: '上課時間', value: d.class_time },
+      { label: '上課人數', value: d.class_size },
+      { label: '補課辦法', value: d.makeup_policy },
+    ]),
+  },
+  {
+    title: '課程學費',
+    items: rows([
+      { label: '預約費用', value: d.price },
+      { label: '費用說明', value: d.fee_note },
+    ]),
+  },
+].filter((s) => s.items.length);
+const openInfo = rows([
+  { label: '開課期間', value: d.open_period },
+  { label: '報名時間', value: d.signup_period },
+]);
+const hasOpenInfo = !!(d.schedule_file || openInfo.length || d.question || d.phone);
+
+// 側欄摘要
+const facts = rows([
+  { label: '課程類別', value: d.category },
+  { label: '適合對象', value: d.audience },
+  { label: '上課週期', value: d.cycle },
+  { label: '預約費用', value: d.price },
+]);
 ---
 
-<BaseLayout title={title} description={summary || excerpt(course.body, 120)} image={cover}>
-  <PageHeader title={title} subtitle={summary} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
-  <div class="container-page grid gap-10 py-12 lg:grid-cols-[1fr_320px]">
-    <article class="min-w-0">
-      <!-- 上課時段放在最前面，家長一進來就能看到並報名 -->
-      {sessions.length > 0 && (
-        <div class="mb-12">
-          <SessionList sessions={sessions} />
-        </div>
-      )}
-      {cover && <img src={cover} alt="" class="mb-8 w-full rounded-2xl" />}
-      <div class="prose-story">
-        <Content />
-      </div>
+<BaseLayout title={d.title} description={d.summary || d.goal || excerpt(course.body, 120)} image={d.cover}>
+  <PageHeader title={d.title} subtitle={d.summary} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+  <div class="container-page grid gap-10 py-12 lg:grid-cols-[1fr_300px]">
+    <article class="min-w-0 space-y-10">
+      <!-- 課程照片 -->
+      {
+        photos.length > 0 && (
+          <div class:list={['grid gap-3', photos.length > 1 && 'sm:grid-cols-2', photos.length > 2 && 'lg:grid-cols-3']}>
+            {photos.map((src, i) => (
+              <img src={src} alt={`${d.title}上課照片 ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} class="aspect-[4/3] w-full rounded-2xl object-cover" />
+            ))}
+          </div>
+        )
+      }
+
+      <!-- 培養能力 -->
+      {
+        d.skills && (
+          <section class="rounded-2xl bg-brand-50 p-6 ring-1 ring-brand-200">
+            <h2 class="text-xl font-bold text-brand-700">培養能力</h2>
+            <p class="mt-3 leading-relaxed whitespace-pre-line text-ink-900">{d.skills}</p>
+          </section>
+        )
+      }
+
+      <!-- 課程說明、上課方式、課程學費 -->
+      {
+        infoSections.map((s) => (
+          <section>
+            <h2 class="border-l-[6px] border-brand-500 pl-3 text-xl font-bold sm:text-2xl">{s.title}</h2>
+            <dl class="mt-4 divide-y divide-black/5 rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+              {s.items.map((r) => (
+                <div class="grid gap-1 px-5 py-4 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                  <dt class="font-bold text-brand-700">{r.label}</dt>
+                  <dd class="leading-relaxed whitespace-pre-line text-ink-900">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))
+      }
+
+      <!-- 影片分享 -->
+      {
+        videoId && (
+          <section>
+            <h2 class="border-l-[6px] border-brand-500 pl-3 text-xl font-bold sm:text-2xl">影片分享</h2>
+            <div class="mt-4 aspect-video overflow-hidden rounded-2xl bg-black">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0`}
+                title={`${d.title}影片`}
+                class="size-full"
+                loading="lazy"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+              />
+            </div>
+          </section>
+        )
+      }
+
+      <!-- 開課訊息 -->
+      {
+        hasOpenInfo && (
+          <section>
+            <h2 class="border-l-[6px] border-brand-500 pl-3 text-xl font-bold sm:text-2xl">開課訊息</h2>
+            <dl class="mt-4 divide-y divide-black/5 rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+              {d.schedule_file && (
+                <div class="grid gap-1 px-5 py-4 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                  <dt class="font-bold text-brand-700">最新課表</dt>
+                  <dd class="flex flex-wrap items-center gap-3">
+                    <span>{d.schedule_label || '課表'}</span>
+                    <a href={d.schedule_file} target="_blank" rel="noopener" class="btn-outline px-4 py-1 text-sm">課表下載（PDF）</a>
+                  </dd>
+                </div>
+              )}
+              {openInfo.map((r) => (
+                <div class="grid gap-1 px-5 py-4 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                  <dt class="font-bold text-brand-700">{r.label}</dt>
+                  <dd class="leading-relaxed whitespace-pre-line">{r.value}</dd>
+                </div>
+              ))}
+              {d.question && (
+                <div class="grid gap-1 px-5 py-4 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                  <dt class="font-bold text-brand-700">我有問題</dt>
+                  <dd>
+                    {site.line_url ? (
+                      <a href={site.line_url} target="_blank" rel="noopener" class="text-brand-700 underline">{d.question}</a>
+                    ) : (
+                      d.question
+                    )}
+                  </dd>
+                </div>
+              )}
+              {d.phone && (
+                <div class="grid gap-1 px-5 py-4 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                  <dt class="font-bold text-brand-700">電話報名</dt>
+                  <dd><a href={telHref(d.phone)} class="text-brand-700 underline">{d.phone}</a></dd>
+                </div>
+              )}
+            </dl>
+          </section>
+        )
+      }
+
+      <!-- 上課時段（側欄「立即報名」會跳到這裡） -->
+      {d.sessions.length > 0 && <SessionList sessions={d.sessions} defaultLocation={d.location} />}
+
+      <!-- 其他補充說明 -->
+      {
+        hasBody && (
+          <section>
+            <h2 class="border-l-[6px] border-brand-500 pl-3 text-xl font-bold sm:text-2xl">其他說明</h2>
+            <div class="prose-story no-lead mt-4">
+              <Content />
+            </div>
+          </section>
+        )
+      }
     </article>
 
-    <!-- 側欄：課程資訊 + 報名 -->
+    <!-- 側欄：課程摘要 + 報名 -->
     <aside class="lg:sticky lg:top-24 lg:self-start">
       <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <dl class="space-y-4">

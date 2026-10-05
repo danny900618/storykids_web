@@ -151,8 +151,8 @@ function registrationRows(r: Registration, session?: Session): EmailContent['row
     ['學生姓名', r.student_name],
     ['預約費用', money(r.amount)],
     ['費用說明', session?.fee_note],
-    ['上課週期', session?.schedule],
-    ['上課期間', session?.time],
+    ['上課週期', session?.cycle],
+    ['上課期間', [session?.period, session?.time].filter(Boolean).join('　')],
     ['上課地點', session?.location],
     ['報名編號', String(r.id)],
   ];

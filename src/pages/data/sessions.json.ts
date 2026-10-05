@@ -9,6 +9,7 @@ export const GET: APIRoute = async () => {
     c.data.sessions.map((s) => ({
       code: s.code,
       name: s.name,
+      period: s.period ?? '',
       time: s.time ?? '',
       capacity: s.capacity,
       price: s.price,
@@ -16,9 +17,9 @@ export const GET: APIRoute = async () => {
       course_id: c.id,
       course_title: c.data.title,
       category: c.data.category,
-      schedule: c.data.schedule ?? '',
+      cycle: c.data.cycle ?? '',
       fee_note: c.data.fee_note ?? '',
-      location: c.data.location ?? '故事講堂',
+      location: s.location ?? c.data.location ?? '故事講堂',
     })),
   );
 

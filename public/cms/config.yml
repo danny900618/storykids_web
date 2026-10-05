@@ -68,39 +68,64 @@ collections:
       default:
         field: order
         direction: ascending
+    # 欄位沿用舊站課程頁：每個資訊獨立填寫，課程頁以固定模板顯示（空白的欄位不會顯示）
     fields:
+      # ---- 基本資料 ----
       - { name: title, label: 課程名稱, widget: string }
-      - { name: category, label: 班別（例如：學期班（11509學期）、寒假營隊）, widget: string, default: 學期班, required: false }
-      - { name: audience, label: 適合對象（例如：小一~小二）, widget: string, required: false }
-      - { name: summary, label: 課程簡介（顯示在課程卡片上）, widget: text, required: false }
-      - { name: schedule, label: 上課時間, widget: string, required: false }
-      - { name: class_size, label: 班級人數, widget: string, required: false }
-      - { name: price, label: 費用（顯示用文字，例如：NT$ 11,000 / 期）, widget: string, required: false }
+      - { name: category, label: 課程類別（例如：學期班（11509學期）、115夏令營）, widget: string, default: 學期班, required: false }
+      - { name: audience, label: 適合對象（課程卡片上的短標籤，例如：小一~小二）, widget: string, required: false }
+      - { name: summary, label: 課程簡介（課程卡片上顯示）, widget: text, required: false }
       - { name: cover, label: 課程卡片圖片, widget: image, required: false }
-      - { name: featured, label: 顯示在首頁, widget: boolean, default: false, required: false }
-      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
-      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
-      - { name: registration_url, label: 外部報名連結（選填；有設定下方「上課時段」時會改用網站的線上報名，此欄不需填）, widget: string, required: false }
-      - { name: fee_note, label: 費用說明（會出現在報名通知信，例如：費用包含教材與午餐、退費規定）, widget: text, required: false }
-      - { name: location, label: 上課地點（會出現在報名通知信）, widget: string, default: 故事講堂, required: false }
+      - { name: images, label: 課程照片（課程頁最上方，可一次選多張）, widget: image, multiple: true, required: false }
+      # ---- 課程說明 ----
+      - { name: skills, label: 培養能力, widget: text, required: false }
+      - { name: goal, label: 課程目標, widget: text, required: false }
+      - { name: level, label: 適合程度, widget: text, required: false }
+      - { name: content, label: 課程內容, widget: text, required: false }
+      - { name: practice, label: 表達練習, widget: text, required: false }
+      - { name: video, label: 影片分享（YouTube 網址，選填）, widget: string, required: false }
+      # ---- 上課方式 ----
+      - { name: cycle, label: 上課週期（例如：每期16週課程、五天主題課程30小時）, widget: string, required: false }
+      - { name: class_time, label: 上課時間（例如：每週上課一次，每堂課100分鐘）, widget: text, required: false }
+      - { name: class_size, label: 上課人數（例如：每班最多12人）, widget: string, required: false }
+      - { name: makeup_policy, label: 補課辦法, widget: text, required: false }
+      # ---- 課程學費 ----
+      - { name: price, label: 預約費用（顯示用文字，例如：NT$ 11,000 / 期）, widget: string, required: false }
+      - { name: fee_note, label: 費用說明（例如：費用包含教材、退費規定；也會出現在報名通知信）, widget: text, required: false }
+      # ---- 開課訊息 ----
+      - { name: schedule_file, label: 最新課表（上傳 PDF）, widget: file, required: false, media_folder: /public/files, public_folder: /files }
+      - { name: schedule_label, label: 最新課表說明（例如：115年暑期課表）, widget: string, required: false }
+      - { name: open_period, label: 開課期間, widget: string, required: false }
+      - { name: signup_period, label: 報名時間, widget: string, required: false }
+      - { name: question, label: 我有問題, widget: string, default: 歡迎加入「故事講堂-Line官方帳號」詢問, required: false }
+      - { name: phone, label: 電話報名, widget: string, default: 04-23196868, required: false }
+      # ---- 上課時段 ----
+      - { name: location, label: 上課地點（時段沒有另外填寫時使用；也會出現在報名通知信）, widget: string, default: 故事講堂, required: false }
       - name: sessions
-        label: 上課時段（家長在課程頁選擇時段線上報名）
+        label: 上課時段（家長選擇時段線上報名）
         label_singular: 時段
         widget: list
         required: false
         collapsed: true
-        summary: "{{fields.name}}｜名額 {{fields.capacity}}｜NT$ {{fields.price}}"
+        summary: "{{fields.name}}｜{{fields.period}}｜名額 {{fields.capacity}}"
         fields:
           - name: code
-            label: 時段代號（小寫英文、數字、-，例如 winter116-a；⚠️ 已有人報名後請勿修改或刪除此時段）
+            label: 時段代號（小寫英文、數字、-，例如 summer115-a；⚠️ 已有人報名後請勿修改或刪除此時段）
             widget: string
             pattern: ["^[a-z0-9-]+$", "只能使用小寫英文、數字與 -"]
-          - { name: name, label: 時段名稱（例如：116 冬令營 A 梯）, widget: string }
-          - { name: time, label: 上課時間（例如：1/20–1/24 每天 9:00–16:30）, widget: string, required: false }
+          - { name: name, label: 時段名稱（例如：A 梯、週三班）, widget: string }
+          - { name: period, label: 上課期間（例如：2026-08-24~2026-08-28）, widget: string, required: false }
+          - { name: time, label: 上課時間（例如：09:00-16:30）, widget: string, required: false }
+          - { name: location, label: 上課地點（未填寫則用課程的上課地點）, widget: string, required: false }
           - { name: capacity, label: 名額, widget: number, value_type: int, min: 0, default: 12 }
-          - { name: price, label: 費用（新台幣，只填數字）, widget: number, value_type: int, min: 0 }
+          - { name: price, label: 費用（新台幣，只填數字；報名時以此金額產生繳費帳號）, widget: number, value_type: int, min: 0 }
           - { name: open, label: 開放報名（取消勾選即暫停報名）, widget: boolean, default: true, required: false }
-      - { name: body, label: 課程詳細內容, widget: richtext, required: false }
+      # ---- 其他 ----
+      - { name: featured, label: 顯示在首頁, widget: boolean, default: false, required: false }
+      - { name: published, label: 啟用, widget: boolean, default: true, required: false }
+      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: registration_url, label: 外部報名連結（沒有設定上課時段時才會使用）, widget: string, required: false }
+      - { name: body, label: 其他補充說明（選填，顯示在課程頁最下方）, widget: richtext, required: false }
 
   # ---------------------------------------------------------------- 關於講堂 / 上課須知
   - name: pages

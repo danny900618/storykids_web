@@ -46,39 +46,56 @@ const news = defineCollection({
 // 課程介紹
 const courses = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/courses' }),
+  // 沿用舊站課程頁的欄位：每個資訊獨立填寫，課程頁以固定模板顯示，通知信也直接取用這些欄位
   schema: z.object({
+    // ---- 基本資料 ----
     title: z.string(),
-    // 班別，例如「學期班」「寒暑假營隊」
+    // 課程類別，例如「學期班（11509學期）」「115夏令營」
     category: z
       .string()
       .nullish()
       .transform((v) => v?.trim() || '學期班'),
-    // 適合對象，例如「國小一～三年級」
+    // 適合對象（課程卡片上的短標籤），例如「小一~小二」
     audience: optionalText,
+    // 課程簡介（課程卡片上顯示）
     summary: optionalText,
-    // 上課時間、人數、費用等以文字呈現，避免格式限制
-    schedule: optionalText,
-    class_size: optionalText,
-    price: optionalText,
     cover: optionalText,
-    // 對應舊 CMS 的「首頁課程」
-    featured: bool(false),
-    published: bool(true),
-    // 排序：數字越小越前面
-    order: orderNumber,
-    // 個別課程的報名連結；未填寫時使用網站設定中的預設報名連結（有設定上課時段時改用線上報名）
-    registration_url: optionalText,
-    // 費用說明（例如退費規定），會出現在報名通知信
-    fee_note: optionalText,
-    // 上課地點，會出現在報名通知信
+    // 課程照片（課程頁最上方）
+    images: stringList,
+    // ---- 課程說明 ----
+    skills: optionalText, // 培養能力
+    goal: optionalText, // 課程目標
+    level: optionalText, // 適合程度
+    content: optionalText, // 課程內容
+    practice: optionalText, // 表達練習
+    video: optionalText, // 影片分享（YouTube 網址）
+    // ---- 上課方式 ----
+    cycle: optionalText, // 上課週期，例如「五天主題課程30小時」
+    class_time: optionalText, // 上課時間，例如「早上9：00-12：00上課…」
+    class_size: optionalText, // 上課人數
+    makeup_policy: optionalText, // 補課辦法
+    // ---- 課程學費 ----
+    price: optionalText, // 預約費用（顯示用文字）
+    fee_note: optionalText, // 費用說明（退費規定等），也會出現在報名通知信
+    // ---- 開課訊息 ----
+    schedule_file: optionalText, // 最新課表（PDF 檔案路徑）
+    schedule_label: optionalText, // 最新課表的說明文字，例如「115年暑期課表」
+    open_period: optionalText, // 開課期間
+    signup_period: optionalText, // 報名時間
+    question: optionalText, // 我有問題
+    phone: optionalText, // 電話報名
+    // ---- 上課時段 ----
+    // 上課地點（時段沒有另外填寫時使用），也會出現在報名通知信
     location: optionalText,
-    // 上課時段：家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，已有人報名後不可修改
+    // 家長在課程頁選擇時段報名。代號（code）是報名資料對應時段的依據，已有人報名後不可修改
     sessions: z
       .array(
         z.object({
           code: z.string().regex(/^[a-z0-9-]+$/, '時段代號只能用小寫英文、數字與 -'),
           name: z.string(),
-          time: optionalText,
+          period: optionalText, // 上課期間，例如「2026-08-24~2026-08-28」
+          time: optionalText, // 上課時間，例如「09:00-16:30」
+          location: optionalText, // 上課地點（未填寫則用課程的上課地點）
           capacity: z.number().int().min(0),
           price: z.number().int().min(0),
           open: bool(true),
@@ -86,6 +103,14 @@ const courses = defineCollection({
       )
       .nullish()
       .transform((v) => v ?? []),
+    // ---- 其他 ----
+    // 對應舊 CMS 的「首頁課程」
+    featured: bool(false),
+    published: bool(true),
+    // 排序：數字越小越前面
+    order: orderNumber,
+    // 外部報名連結；未設定上課時段時使用（未填寫時用網站設定中的預設報名連結）
+    registration_url: optionalText,
   }),
 });
 

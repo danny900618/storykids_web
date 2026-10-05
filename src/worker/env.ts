@@ -59,6 +59,7 @@ export interface Env {
 export interface Session {
   code: string;
   name: string;
+  period?: string; // 上課期間，例如「2026-08-24~2026-08-28」
   time: string;
   capacity: number;
   price: number;
@@ -67,9 +68,9 @@ export interface Session {
   course_title: string;
   // 課程層級資訊（通知信使用）
   category?: string; // 課程類別，例如「學期班（11509學期）」「115夏令營」
-  schedule?: string; // 上課週期，例如「五天主題課程30小時」
+  cycle?: string; // 上課週期，例如「五天主題課程30小時」
   fee_note?: string; // 費用說明（退費規定等）
-  location?: string; // 上課地點
+  location?: string; // 上課地點（時段有填寫則用時段的）
 }
 
 export interface Registration {
