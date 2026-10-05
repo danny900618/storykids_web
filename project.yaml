@@ -24,9 +24,14 @@ context:
     status: 外包要整個換掉，上線後「不能」再跳回舊系統
   domain:
     name: storykids.com.tw
-    registrar: 遠振資訊
+    # 2026-10-05 WHOIS 查詢（whois.twnic.net.tw）
+    registrar: 網路中文（NET-CHINESE，net-chinese.com.tw）   # 先前誤記為遠振
+    registrant: 魔瓶視覺設計（Mobile Visual Design Co.）   # ⚠️ 法律上的所有人是外包，不是補習班
+    expires: 2028-04-17
+    created: 2005-04-17
+    status: clientTransferProhibited
     # 2026-10-02 dig 查詢結果
-    nameservers: [ns1.mor-e.tw, ns2.mor-e.tw]   # ⚠️ DNS 由舊外包（Mor-e）管理，不是遠振
+    nameservers: [ns1.mor-e.tw, ns2.mor-e.tw]   # ⚠️ DNS 由舊外包（墨宇 Mor-e）管理
     mx: storykids.com.tw（223.27.34.209，即舊網站主機）   # ⚠️ @storykids.com.tw 信箱架在舊外包主機上
     spf: "v=spf1 +a +mx +ip4:223.27.34.209 ~all"
     dmarc: 無
@@ -40,7 +45,7 @@ context:
     ssl_risk: >
       舊站憑證 Let's Encrypt（cPanel AutoSSL），有效至 2026-12-17；DNS 上有 _acme-challenge，續約可能依賴外包 DNS，
       轉到 Cloudflare 後可能續約失敗 → 對策：12/17 前新站上線，或將 @、www 改為 Cloudflare 代理
-    rollback: 遠振把 Nameserver 改回 ns1.mor-e.tw、ns2.mor-e.tw
+    rollback: 網路中文把 Nameserver 改回 ns1.mor-e.tw、ns2.mor-e.tw
   contact:
     address: 台中市向上路698號（文心公園旁）
   payment_methods_on_old_site:   # 來源：https://storykids.com.tw/notice_price.php
@@ -98,7 +103,7 @@ context:
 # -----------------------------------------------------------------------------
 billing:
   credit_card_required_now: false
-  auto_charges_now: [網域續約（遠振，視自動續約設定）]
+  auto_charges_now: [網域續約（網路中文，視自動續約設定；到期 2028-04-17）]
   services:
     - { name: Cloudflare Workers, plan: Free, card: false, limit: "靜態不限量；/api、/admin 每天 10 萬次", over_limit: 當天 API 失敗（台灣 08:00 重置），不收費 }
     - { name: Cloudflare D1, plan: Free, card: false, limit: "每天讀 500 萬列／寫 10 萬列，5 GB", over_limit: 當天查詢失敗，不收費 }
@@ -106,7 +111,7 @@ billing:
     - { name: Cloudflare Access, plan: Zero Trust Free, card: 可能需要（不收費）, limit: 50 人, note: 正式上線後才設定 }
     - { name: GitHub, plan: Free, card: false, limit: "Actions 每月 2,000 分鐘", over_limit: Actions 停止，預設不扣款 }
     - { name: Sveltia CMS, plan: 開源, card: false, note: 由 unpkg CDN 載入（鎖定版本） }
-    - { name: 網域 storykids.com.tw, plan: 遠振年費, card: 視設定, note: 忘記續約網站會停 }
+    - { name: 網域 storykids.com.tw, plan: 網路中文年費, card: 視設定, note: 忘記續約網站會停 }
   future:
     - 三竹簡訊：每則計費，通常預付點數，用完即停 → 需監控餘額
     - 台新虛擬帳號：每筆代收手續費
@@ -177,7 +182,7 @@ decisions:
     repo: https://github.com/danny900618/storykids_web （暫放開發者個人帳號，之後轉給補習班 / Organization）
   - id: D5
     topic: 網域
-    choice: 將 Nameserver 轉到 Cloudflare（註冊商仍留在遠振）
+    choice: 將 Nameserver 轉到 Cloudflare（註冊商仍留在網路中文）
     reason: 根網域（storykids.com.tw）綁 Cloudflare Pages 必須使用 Cloudflare Nameserver；CNAME 只適用於子網域。
     caution: 轉移前務必完整複製 MX / SPF / DKIM 等郵件相關 DNS 紀錄。
   - id: D6
@@ -188,7 +193,7 @@ decisions:
     topic: 帳號所有權
     choice: >
       GitHub（danny900618）與 Cloudflare（c0981985611@gmail.com）由開發者持有與維護；
-      網域 storykids.com.tw 的註冊（遠振）保留在補習班名下。
+      網域 storykids.com.tw 的註冊（網路中文）應過戶到補習班名下（目前註冊人為魔瓶視覺設計，見 Q2）。
     reason: 2026-10-02 開發者決定自行維護（原規劃為補習班持有、開發者為協作者）。網域留在補習班，確保必要時可自行改指向。
     handover: >
       交接時：GitHub repo 用 Transfer ownership 轉移；Cloudflare 無跨帳號搬移功能，需在新帳號重建 Worker 與 D1、
@@ -211,7 +216,10 @@ open_questions:
     owner: 補習班
     blocks: [T9]
   - id: Q2
-    question: 遠振的網域帳號是否在補習班手上？網域是否有使用 Email（MX 紀錄）？
+    question: >
+      網域過戶：目前註冊人為「魔瓶視覺設計」、註冊商為網路中文。請魔瓶將 storykids.com.tw 過戶給補習班
+      （註冊人：台中市私立故事講堂國語藝術短期補習班；補習班先建立網路中文帳號），完成後開啟自動續約（到期 2028-04-17）。
+      DNS 目前由墨宇（ns1/ns2.mor-e.tw）管理；網域是否有使用 Email（MX 指向舊主機）
     owner: 補習班
     blocks: [T9]
   - id: Q3
@@ -309,7 +317,7 @@ tasks:
     notes: OAuth App 與 secrets 已設定（2026-10-02），待實測與邀請人員
     depends_on: [T13]
   - id: T9
-    title: DNS 切換（遠振 → Cloudflare Nameserver），SSL 自動開通
+    title: DNS 切換（網路中文 → Cloudflare Nameserver），SSL 自動開通
     status: blocked
     depends_on: [T8, Q1, Q2]
   - id: T10
@@ -429,3 +437,5 @@ changelog:
       自動化測試加 concurrency（新 push 取消舊測試）。部署維持依序執行（最後上線即最新內容），不另做取消舊部署。
   - date: 2026-10-05
     note: 報名管理後台新增「操作紀錄」區塊（進入後台 30 分鐘記一次、修改狀態／正取候補、模擬入帳、匯出名單、寄測試信／簡訊、系統自動對帳），可依使用者篩選；測試 64 項。
+  - date: 2026-10-05
+    note: WHOIS 查得網域註冊商為網路中文（非遠振）、註冊人為魔瓶視覺設計、到期 2028-04-17；需請魔瓶過戶給補習班（Q2）。

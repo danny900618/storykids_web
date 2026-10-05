@@ -31,7 +31,7 @@
 | Cloudflare Access（建議） | 報名管理後台登入（Email 驗證碼） | 免費（50 人以內） | 同上 |
 | [Sveltia CMS](https://sveltiacms.app) | 內容後台 `/cms`：消息、課程與上課時段、老師、相簿、網站設定（開源，網頁放在本站，登入流程由本站 Worker 處理，不依賴第三方伺服器） | 免費 | 每位編輯者需有 GitHub 帳號，並加為 repo 協作者（Write 權限） |
 | GitHub OAuth App | 內容後台的「用 GitHub 登入」 | 免費 | 建在 repo 擁有者帳號下；callback URL：`https://網站網址/api/cms-auth/callback` |
-| 遠振資訊 | 網域 storykids.com.tw 註冊 | 每年續約 | 補習班 |
+| 網路中文 | 網域 storykids.com.tw 註冊（到期 2028-04-17） | 每年續約 | ⚠️ 目前註冊人為「魔瓶視覺設計」，需過戶給補習班 |
 | 三竹簡訊 | 報名、繳費簡訊 | 每則計費 | **尚未串接** |
 | 台新銀行 | 虛擬帳號代收、自動對帳 | 代收手續費 | **尚未串接** |
 | 寄信服務（建議 Brevo） | 報名確認信，寄件人 `故事講堂 <service@storykids.com.tw>` | 免費每天 300 封 | **尚未串接** |
@@ -52,7 +52,7 @@
 | Cloudflare Access（正式上線後） | Zero Trust Free（50 人內） | **可能要求綁卡才能啟用**（不收費） | 50 位使用者 | — |
 | GitHub | Free | 否 | 私有 repo；Actions 每月 2,000 分鐘 | Actions 停止（自動縮圖暫停）；預設預算 0，不會扣款 |
 | Sveltia CMS | 開源 | 否 | — | 從 unpkg CDN 載入（已鎖定版本），CDN 故障時後台暫時打不開 |
-| 網域（遠振） | 年費 | 視遠振設定 | — | **忘記續約網站會打不開**，建議開自動續約 |
+| 網域（網路中文） | 年費 | 視網路中文設定 | — | **忘記續約網站會打不開**，建議開自動續約 |
 
 **之後串接時會新增的費用**（依合約為準）：三竹簡訊（每則計費，通常為**預付點數，點數用完簡訊就停**，要留意餘額）、台新代收手續費（每筆）、寄信服務（Brevo 免費每天 300 封，超過當天停止寄送或升級付費）。
 
@@ -189,6 +189,22 @@ npx wrangler secret put ADMIN_PASSWORD  # 暫時的後台密碼（正式建議�
 ### 資料庫異動
 
 新增 `migrations/000X_xxx.sql` → 本機 `npm run db:migrate:local` 測試 → 正式 `npm run db:migrate:remote`。
+
+## 定期維護清單
+
+| 頻率 | 項目 | 說明 |
+|---|---|---|
+| **每年（必做）** | **網域續約** | 網路中文，下次到期 **2028-04-17**；過期網站與信箱全部停擺。開啟自動續約、確認信用卡與聯絡 Email 有效 |
+| 每次報名季前 | 確認上課時段 | 內容後台的時段、名額、費用、「開放報名」 |
+| 每次報名季前 | 端對端測試 | 報名 → Email／簡訊 → 入帳 → 繳費完成通知 |
+| 每次報名季前 | 三竹簡訊點數 | 報名管理後台右上角顯示剩餘點數，不足先儲值 |
+| 每次報名季前（選配） | 流量預估 | 預期尖峰很大時可暫時升級 Workers Paid（US$5／月） |
+| 每半年～一年 | 人員帳號 | 移除離職人員：GitHub 協作者（/cms）、Cloudflare Access 白名單（/admin） |
+| 每半年～一年 | 報名資料備份 | 報名管理後台匯出 Excel；或 `npx wrangler d1 export storykids --remote --output=backup.sql` |
+| 每半年～一年 | 套件更新 | `npm outdated` → 更新 → `npm test`、`npm run check`；Sveltia 升版要重算 `public/cms/index.html` 的 SRI |
+| 每半年～一年 | 廠商帳號 | 三竹密碼若有定期更換規定，更新 `MITAKE_PASSWORD`；確認台新、Brevo 合約與費率 |
+
+不需要處理：主機、主機系統更新、SSL 憑證、流量與防攻擊（Cloudflare 自動負責）；網站內容備份（GitHub 有完整修改紀錄）。
 
 ## 安全機制
 
