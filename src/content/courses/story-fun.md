@@ -13,13 +13,14 @@ goal: 藉雙人主題故事說演，培養基本的上台表達力；也藉節�
 level: 國小一~二年級(以9月學期就讀年級為準)
 content: 課程共分ABCD四套教材，每學期一套。內容有順口溜、節慶故事、成語故事、主題故事、新聞台及小相聲…等。
 practice: 每堂課皆會練習，學期末時會邀請家長參加發表會哦!
+video: ''
 cycle: 每期16週課程
 class_time: 每週上課一次，每堂課100分鐘。
 class_size: 每班最多12人
 makeup_policy: 考量學習成效，每學期提供二次補課：1.可至相同主題與進度課程時段補課。 2.與老師另約30分鐘補課(原上課時段，提前或延後30分鐘)。
 price: NT$ 11,000 / 期
 fee_note: 650元*16堂課=10400元。另收教材費600元(含講義和音檔連結)。每期學費為10400+600=11000元。
-schedule_file: /files/11509-schedule.pdf
+schedule_file: /files/故事講堂網站後台操作教學（測試版）.pdf
 schedule_label: 11509學期 課表
 open_period: 每年9月開課，6月初會公告最新課表。
 signup_period: 自公告課表起，至開課二週前皆可報名。
@@ -29,17 +30,22 @@ location: 故事講堂
 sessions:
   - code: test-wed
     name: 測試時段 A（週三班）
+    period: ''
     time: 每週三 16:00–17:40
+    location: ''
     capacity: 2
     price: 11000
     open: true
   - code: test-sat
     name: 測試時段 B（週六班）
+    period: ''
     time: 每週六 10:00–11:40
+    location: ''
     capacity: 1
     price: 11000
     open: true
 featured: true
 published: true
 order: 1
+registration_url: ''
 ---
