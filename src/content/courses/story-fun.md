@@ -38,8 +38,8 @@ sessions:
     name: (週三)晚上7:00~8:40
     period: 2026-09-09～2026-12-23
     time: '123'
-    location: ''
-    capacity: 2
+    location: 台中市向上路一段698號
+    capacity: 12
     price: 11000
     open: true
   - code: test-sat
