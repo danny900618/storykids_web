@@ -17,6 +17,9 @@ export interface Env {
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
 
+  // 環境名稱：「測試環境」或「正式環境」（報名管理後台頁首顯示）
+  ENV_LABEL?: string;
+
   // 正式網域（逗號分隔）。正式網域上若金流仍為測試模式，會拒絕報名，避免家長拿到假的繳費帳號
   PRODUCTION_HOSTS?: string;
 

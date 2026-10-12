@@ -16,6 +16,7 @@ import '../../styles/global.css';
     <header class="sticky top-0 z-30 border-b border-black/5 bg-white">
       <div class="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3">
         <h1 class="text-lg font-bold">故事講堂｜報名管理</h1>
+        <span id="env-badge" class="hidden rounded-full px-3 py-1 text-xs font-bold"></span>
         <span id="mode-badge" class="hidden rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800"></span>
         <div class="ml-auto flex flex-wrap items-center gap-3 text-sm">
           <span id="actor" class="text-ink-500"></span>
@@ -149,7 +150,7 @@ import '../../styles/global.css';
       const tw = (iso: string | null) =>
         iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
 
-      let config: { actor: string; payment_mode: string; mail_mode: string; sms_mode: string; statuses: string[]; sms_points: number | null };
+      let config: { actor: string; env_label: string; payment_mode: string; mail_mode: string; sms_mode: string; statuses: string[]; sms_points: number | null };
       const filters = $<HTMLFormElement>('filters');
 
       async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -456,6 +457,14 @@ import '../../styles/global.css';
           return;
         }
         $('actor').textContent = `登入：${config.actor}`;
+        // 測試／正式環境標示（顏色不同，避免搞混）
+        if (config.env_label) {
+          const badge = $('env-badge');
+          badge.textContent = config.env_label;
+          badge.classList.add(config.env_label === '正式環境' ? 'bg-green-600' : 'bg-blue-600', 'text-white');
+          badge.classList.remove('hidden');
+          document.title = `${config.env_label}｜報名管理｜故事講堂`;
+        }
         if (config.sms_points !== null) {
           $('sms-points').textContent = `簡訊點數 ${config.sms_points}`;
           $('sms-points').classList.toggle('text-red-600', config.sms_points < 200);

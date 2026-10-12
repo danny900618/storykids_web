@@ -2,6 +2,13 @@
 // - 網頁：dist/ 靜態檔案（Astro 建置）
 // - 後端：src/worker/index.ts，只處理 /api/* 與 /admin（報名、名額、報名管理後台）
 // name 必須與 Cloudflare 後台的 Worker 名稱一致
+//
+// 兩套環境（程式與網站內容相同，資料庫與設定分開）：
+// - 測試環境（最上層設定）：storykids-web → https://storykids-web.c0981985611.workers.dev
+//   部署：npx wrangler deploy；資料庫 storykids（測試報名，永遠是測試模式）
+// - 正式環境（env.production）：storykids-web-production → 上線時綁 storykids.com.tw
+//   部署：npx wrangler deploy --env production；資料庫 storykids-production（正式報名與舊站學生名單）
+// ⚠️ env.production 不會繼承最上層的 d1_databases、ratelimits、vars，修改時兩邊都要改
 {
   "name": "storykids-web",
   "main": "src/worker/index.ts",
@@ -33,6 +40,8 @@
     { "name": "LOGIN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }
   ],
   "vars": {
+    // 環境名稱（報名管理後台頁首顯示，避免把測試和正式搞混）
+    "ENV_LABEL": "測試環境",
     // 正式網域：在這些網域上，若 PAYMENT_MODE 不是 live 就不開放報名（避免家長拿到假的繳費帳號）
     "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw",
     // Cloudflare Turnstile 防機器人的 site key（公開值）；secret 用 `wrangler secret put TURNSTILE_SECRET_KEY`
@@ -55,9 +64,47 @@
     // 內容後台（/cms）的 GitHub 登入：填入 GitHub OAuth App 的 Client ID；Client secret 用 `wrangler secret put GITHUB_CLIENT_SECRET`
     "GITHUB_CLIENT_ID": "Ov23liDuGhok8y2SHlCF",
     // 允許使用內容後台登入的網址（本身網址一律允許）
-    "CMS_ALLOWED_ORIGINS": "https://storykids-web.c0981985611.workers.dev,https://storykids.com.tw,http://127.0.0.1:8787,http://localhost:8787"
+    "CMS_ALLOWED_ORIGINS": "https://storykids-web.c0981985611.workers.dev,https://storykids-web-production.c0981985611.workers.dev,https://storykids.com.tw,https://www.storykids.com.tw,http://127.0.0.1:8787,http://localhost:8787"
   },
   "observability": {
     "enabled": true
+  },
+
+  // ---------------------------------------------------------------- 正式環境
+  "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "storykids-production",
+          // 2026-10-12 建立（APAC 區域）：正式報名資料與舊站學生名單
+          "database_id": "937d6957-b9c1-4cd4-89b4-d7a6985be36c",
+          "migrations_dir": "migrations"
+        }
+      ],
+      // namespace_id 與測試環境不同，兩邊的次數限制分開計算
+      "ratelimits": [
+        { "name": "REGISTER_LIMITER", "namespace_id": "2001", "simple": { "limit": 5, "period": 60 } },
+        { "name": "LOGIN_LIMITER", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } }
+      ],
+      "vars": {
+        "ENV_LABEL": "正式環境",
+        // 正式機的 workers.dev 網址也列入：金流正式串接（PAYMENT_MODE=live）前，正式機一律不開放報名
+        "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw,storykids-web-production.c0981985611.workers.dev",
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAFN4uNb2C_uM5LaQ",
+        // 上線時（T34）依序改為 live
+        "MAIL_MODE": "mock",
+        "SMS_MODE": "mock",
+        "PAYMENT_MODE": "mock",
+        "MAIL_FROM": "故事講堂 <service@storykids.com.tw>",
+        // 上線切換網域後改為 https://storykids.com.tw
+        "PUBLIC_SITE_URL": "https://storykids-web-production.c0981985611.workers.dev",
+        "CONTACT_PHONE": "04-23196868",
+        "COMPANY_EMAIL": "service@storykids.com.tw",
+        "MITAKE_API_URL": "https://smsapi.mitake.com.tw/api/mtk/SmSend",
+        "GITHUB_CLIENT_ID": "Ov23liDuGhok8y2SHlCF",
+        "CMS_ALLOWED_ORIGINS": "https://storykids-web.c0981985611.workers.dev,https://storykids-web-production.c0981985611.workers.dev,https://storykids.com.tw,https://www.storykids.com.tw"
+      }
+    }
   }
 }

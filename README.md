@@ -94,7 +94,7 @@
 
 ```sh
 node scripts/import-legacy.mjs old_class /tmp/legacy.sql
-npx wrangler d1 execute storykids --remote --file /tmp/legacy.sql   # 本機測試改 --local
+npx wrangler d1 execute DB --remote --env production --file /tmp/legacy.sql   # 正式；測試環境去掉 --env production，本機改 --local
 rm /tmp/legacy.sql
 ```
 
@@ -172,15 +172,39 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 ## 部署
 
-push 到 `main` 後，Cloudflare 會自動建置（`npm run build`）並部署（`npx wrangler deploy`）。
+### 兩套環境
+
+程式與網站內容（`src/content/`）兩邊相同，**資料庫、密鑰與模式設定分開**，測試報名不會進入正式名單：
+
+| | 測試環境 | 正式環境 |
+|---|---|---|
+| Worker | `storykids-web` | `storykids-web-production` |
+| 網址 | https://storykids-web.c0981985611.workers.dev | https://storykids-web-production.c0981985611.workers.dev（上線時綁 storykids.com.tw） |
+| 資料庫（D1） | `storykids`：測試報名（另有一份舊站名單副本） | `storykids-production`：正式報名＋舊站學生名單 |
+| 設定 | `wrangler.jsonc` 最上層 | `wrangler.jsonc` 的 `env.production`（**不繼承**最上層的 vars、D1、ratelimits，改設定兩邊都要改） |
+| 模式 | 永遠 `mock` | 上線時改 `live`；`PAYMENT_MODE` 不是 `live` 前不開放報名 |
+| 部署指令 | `npx wrangler deploy` | `npx wrangler deploy --env production`（或 `npm run deploy:production`） |
+| 資料表異動 | `npm run db:migrate:remote` | `npm run db:migrate:production` |
+
+報名管理後台頁首會顯示「測試環境」（藍）或「正式環境」（綠）。內容後台 `/cms` 兩邊共用：存檔 commit 到 `main` 後兩邊都會重新部署。
+
+push 到 `main` 後，Cloudflare Workers Builds 會自動建置並部署兩個 Worker（各自在 Cloudflare 後台連結 GitHub repo）：
+
+| Worker | Build command | Deploy command | 非 main 分支 |
+|---|---|---|---|
+| `storykids-web` | `npm run build` | `npx wrangler deploy` | 開啟（產生預覽網址，先測新程式） |
+| `storykids-web-production` | `npm run build` | `npx wrangler deploy --env production` | 關閉 |
+
+⚠️ 密鑰（secret）兩邊分開設定，正式環境的指令都要加 `--env production`，例如 `npx wrangler secret put ADMIN_PASSWORD --env production`。
+⚠️ 有新的 migration 時，**先套用到兩個資料庫**再 push。
 
 ### 第一次啟用報名系統（只需做一次）
 
 ```sh
-npx wrangler login                      # 登入補習班的 Cloudflare 帳號
-npx wrangler d1 create storykids        # 建立資料庫 → 把 database_id 填進 wrangler.jsonc
-npm run db:migrate:remote               # 在正式資料庫建立資料表
-npx wrangler secret put ADMIN_PASSWORD  # 暫時的後台密碼（正式建議改用 Cloudflare Access）
+npx wrangler login                                        # 登入 Cloudflare 帳號
+npx wrangler d1 create storykids-production --location apac  # 建立資料庫 → 把 database_id 填進 wrangler.jsonc
+npm run db:migrate:production                             # 建立資料表
+npx wrangler secret put ADMIN_PASSWORD --env production   # 暫時的後台密碼（正式建議改用 Cloudflare Access）
 ```
 
 ### 內容後台（/cms）登入設定（只需做一次）
@@ -210,7 +234,7 @@ npx wrangler secret put ADMIN_PASSWORD  # 暫時的後台密碼（正式建議�
 
 ### 資料庫異動
 
-新增 `migrations/000X_xxx.sql` → 本機 `npm run db:migrate:local` 測試 → 正式 `npm run db:migrate:remote`。
+新增 `migrations/000X_xxx.sql` → 本機 `npm run db:migrate:local` 測試 → 測試環境 `npm run db:migrate:remote` → 正式環境 `npm run db:migrate:production` → 再 push 程式。
 
 ## 定期維護清單
 

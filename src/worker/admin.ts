@@ -15,6 +15,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
     await logEntry(env, actor);
     return json({
       actor,
+      env_label: env.ENV_LABEL ?? '',
       payment_mode: env.PAYMENT_MODE,
       mail_mode: env.MAIL_MODE,
       sms_mode: env.SMS_MODE,

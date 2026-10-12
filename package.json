@@ -10,7 +10,9 @@
     "astro": "astro",
     "dev:full": "astro build && wrangler dev",
     "db:migrate:local": "wrangler d1 migrations apply storykids --local",
-    "db:migrate:remote": "wrangler d1 migrations apply storykids --remote",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "db:migrate:production": "wrangler d1 migrations apply DB --remote --env production",
+    "deploy:production": "astro build && wrangler deploy --env production",
     "check:worker": "tsc -p src/worker/tsconfig.json",
     "test": "vitest run"
   },

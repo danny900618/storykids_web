@@ -406,9 +406,12 @@ tasks:
     notes: 2026-10-05 完成（widget：故事講堂報名）。上線時在 Turnstile 的 Hostnames 加上 storykids.com.tw、www.storykids.com.tw
   # ---- 開發：現在可以做（不需等外部資料） ----
   - id: T22
-    title: 分開正式與測試環境（測試用 Worker storykids-web-dev + D1 storykids-dev，wrangler env），避免上線後測試資料混入正式報名
-    status: todo
-    notes: 上線前完成；目前 workers.dev 預覽網址兼作測試環境
+    title: 分開正式與測試環境，避免測試資料混入正式報名
+    status: in_progress
+    notes: >
+      2026-10-12：原本的 storykids-web＋D1 storykids 改為測試環境；新建正式環境 storykids-web-production＋D1 storykids-production（env.production），
+      已套用 migration、首次部署、匯入舊站名單 1542 筆。待開發者：Cloudflare 後台為正式 Worker 連結 GitHub 自動部署（deploy 指令加 --env production）、
+      正式環境設定密鑰（ADMIN_PASSWORD、BREVO_API_KEY、TURNSTILE_SECRET_KEY、GITHUB_CLIENT_SECRET、MITAKE_*，皆加 --env production）、Turnstile Hostnames 加正式網址
   - id: T23
     title: 定時對帳排程（Cron Triggers）架構：每 N 分鐘向台新取得入帳明細 → reconcile()；先接模擬資料，待台新規格補上取得方式
     status: todo
@@ -434,7 +437,7 @@ tasks:
     status: todo
     depends_on: [Q2]
   - id: T29
-    title: Worker 綁定 storykids.com.tw、www.storykids.com.tw（SSL 自動）
+    title: 正式 Worker（storykids-web-production）綁定 storykids.com.tw、www.storykids.com.tw（SSL 自動）
     status: todo
     depends_on: [T9]
   - id: T30
@@ -453,7 +456,7 @@ tasks:
     title: 上線前清理：清空 D1 測試報名資料、改寫繳費說明頁（Q10）、更新首頁照片（Q11）、處理學生姓名（Q8）、營業時間（Q9）
     status: todo
     notes: >
-      ⚠️ 只刪測試報名，保留舊站匯入的資料：DELETE 時加 WHERE legacy_term IS NULL（notifications／payment_events／audit_log 也只刪對應的測試報名）
+      正式資料庫（storykids-production）已與測試分開、只有舊站名單，不需要刪測試報名；只要上線前重新匯入最新舊站資料（T37，匯入正式資料庫）
     depends_on: [T17, Q8, Q9, Q10, Q11]
   - id: T34
     title: 開放正式線上報名：台新串接完成後 PAYMENT_MODE=live、SMS_MODE=live；報名尖峰前評估 Workers Paid
@@ -475,10 +478,10 @@ tasks:
     status: todo
     depends_on: [T36]
   - id: T38
-    title: 上線後處理 workers.dev 網址（storykids-web.c0981985611.workers.dev）：關閉或轉址到 storykids.com.tw，避免兩個網址都能報名
+    title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
     depends_on: [T29]
-    notes: 目前只有一套環境（dev 網址＝之後的正式機，同一個 Worker 與 D1）；上線後要測試請先做 T22
+    notes: 測試環境的 workers.dev 網址保留給補習班練習與測試
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
@@ -560,3 +563,8 @@ changelog:
       migration 0004（新欄位、優待金額、同意的辦法、舊站匯入欄位）；舊站報名資料 1542 筆匯入本機 D1（old_class/ 已加入 .gitignore）。測試 69 項。
   - date: 2026-10-12
     note: 補習班提供學期班補課辦法、退費辦法，更新 makeup-semester、新增 refund-semester，6 個學期班課程皆已選用（Q16 解決）。
+  - date: 2026-10-12
+    note: >
+      分開測試與正式環境（T22）：storykids-web＋D1 storykids 為測試環境；新建 storykids-web-production＋D1 storykids-production（wrangler env.production），
+      已套用 migration、部署、匯入舊站學生名單 1542 筆（正式資料庫只有舊站名單）。正式機在 PAYMENT_MODE=live 前不開放報名、未設定登入前後台拒絕存取。
+      報名管理後台頁首顯示「測試環境／正式環境」。T33 不再需要刪測試資料；T29 改綁正式 Worker；T38 改為關閉正式 Worker 的 workers.dev 網址。
