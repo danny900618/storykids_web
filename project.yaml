@@ -468,12 +468,17 @@ tasks:
   # ---- 2026-10-12 補習班回饋 ----
   - id: T36
     title: 匯入舊站報名資料（scripts/import-legacy.mjs，本機與線上 D1）
-    status: in_progress
-    notes: 本機已匯入 1542 筆；線上 D1 待部署新版程式後匯入（migration 0004 先套用）
+    status: done
+    notes: 2026-10-12 本機與線上 D1 皆已匯入 1542 筆（11 個梯次），migration 0004 已套用；暫存 SQL 已刪除
   - id: T37
     title: 上線前從舊站重新匯出報名資料並再匯入一次（補上最後一段時間的報名）
     status: todo
     depends_on: [T36]
+  - id: T38
+    title: 上線後處理 workers.dev 網址（storykids-web.c0981985611.workers.dev）：關閉或轉址到 storykids.com.tw，避免兩個網址都能報名
+    status: todo
+    depends_on: [T29]
+    notes: 目前只有一套環境（dev 網址＝之後的正式機，同一個 Worker 與 D1）；上線後要測試請先做 T22
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
