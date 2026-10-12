@@ -2,7 +2,7 @@
 name: 哞
 role: 教學部主任
 category: 口語表達
-major: 中興大學 教育研究所 / 台中教育大學 語文教育學習
+major: 中興大學 教育研究所 / 台中教育大學 語教系
 photo: ''
 order: 3
 published: true
