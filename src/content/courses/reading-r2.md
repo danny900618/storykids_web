@@ -3,7 +3,7 @@ title: 閱讀表達R2
 category: 學期班（11509學期）
 audience: 小二
 summary: 學習閱讀理解、整理資料、摘要重點、組織內容後上台分享。
-cover: /images/old/course/984962565ab41edcbc8878804fc8040c.jpg
+cover: /images/閱讀表達R2課程圖.png
 images:
   - /images/old/course/813b1db8925dfe889312f83f3ef5ad5b.jpg
   - /images/old/course/f0a4d74c5d7859b3f0ffab939e797a99.jpg
@@ -13,6 +13,7 @@ goal: 學習閱讀理解、整理資料、摘要重點、組織內容後上台�
 level: 國小2年級(以9月學期就讀年級為準)
 content: 以不同學習主題，引導孩子學習整理重點、摘要，最後上台分享。
 practice: 此課程以培養有效閱讀為主，不做基礎的聲音練習。如表達能力較弱者，建議先上「趣味說故事」課程。
+video: ''
 cycle: 每期16週課程
 class_time: 每週上課一次，每堂課100分鐘。
 class_size: 每班最多12人
@@ -28,7 +29,9 @@ signup_period: 自公告課表起，至開課二週前皆可報名。
 question: 歡迎加入「故事講堂-Line官方帳號」詢問
 phone: 04-23196868
 location: 故事講堂
+sessions: []
 featured: true
 published: true
 order: 2
+registration_url: ''
 ---
