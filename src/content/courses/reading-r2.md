@@ -3,7 +3,7 @@ title: 閱讀表達R2
 category: 學期班（11509學期）
 audience: 小二
 summary: 學習閱讀理解、整理資料、摘要重點、組織內容後上台分享。
-cover: /images/閱讀表達R2課程圖.png
+cover: /images/閱表R2.png
 images:
   - /images/old/course/813b1db8925dfe889312f83f3ef5ad5b.jpg
   - /images/old/course/f0a4d74c5d7859b3f0ffab939e797a99.jpg
