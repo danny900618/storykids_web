@@ -412,6 +412,9 @@ tasks:
       2026-10-12：原本的 storykids-web＋D1 storykids 改為測試環境；新建正式環境 storykids-web-production＋D1 storykids-production（env.production），
       已套用 migration、首次部署、匯入舊站名單 1542 筆。待開發者：Cloudflare 後台為正式 Worker 連結 GitHub 自動部署（deploy 指令加 --env production）、
       正式環境設定密鑰（ADMIN_PASSWORD、BREVO_API_KEY、TURNSTILE_SECRET_KEY、GITHUB_CLIENT_SECRET、MITAKE_*，皆加 --env production）、Turnstile Hostnames 加正式網址
+      測試資料庫保留一份舊站名單副本，讓補習班人員練習（2026-10-12 決定；含真實個資，練習時勿匯出外流）。
+      正式密鑰取得方式：ADMIN_PASSWORD 自訂新密碼；TURNSTILE_SECRET_KEY 從 Turnstile widget 設定複製（與測試相同）；
+      BREVO_API_KEY 在 Brevo 另產生一組；GITHUB_CLIENT_SECRET 在 OAuth App 另產生一組（上線切換 CMS base_url 時才需要）
   - id: T23
     title: 定時對帳排程（Cron Triggers）架構：每 N 分鐘向台新取得入帳明細 → reconcile()；先接模擬資料，待台新規格補上取得方式
     status: todo
