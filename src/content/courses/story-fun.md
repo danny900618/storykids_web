@@ -3,7 +3,7 @@ title: 趣味說故事
 category: 學期班（11509學期）
 audience: 小一~小二
 summary: 藉雙人主題故事說演，培養基本的上台表達力；也藉節慶故事小短文，來練習基礎的閱讀理解和整理哦。
-cover: /images/趣味.png
+cover: /images/趣味課程圖.png
 images:
   - /images/old/course/740c8409b91e4892bd106cb74175d076.jpg
   - /images/old/course/f7424d2672bfdd669065c149fe4e5857.jpg
