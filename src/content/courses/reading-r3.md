@@ -3,7 +3,7 @@ title: 閱讀表達R3
 category: 學期班（11509學期）
 audience: 小四~小六
 summary: 學習閱讀理解討論、整理資料、重點摘要、組織內容後上台分享。
-cover: /images/閱讀表達R4課程圖.png
+cover: /images/閱表R3.png
 images:
   - /images/old/course/a826dec92032ae93f24275ebd8a42e93.jpg
   - /images/old/course/82b69b4c53e8dc9458e964569fe1cee1.jpg
