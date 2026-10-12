@@ -3,7 +3,7 @@ title: 口語表達
 category: 學期班（11509學期）
 audience: 小三~小六
 summary: 培養上台口語表達能力
-cover: /images/old/course/c661e3c0b2226adf956060ae64697e6c.jpg
+cover: /images/口語表達課程圖.png
 images:
   - /images/old/course/71b90b3caeed3abd1e7ce86b716c54db.jpg
   - /images/old/course/b8ec10a75798c92a9e9882b0d47f0245.jpg
@@ -13,6 +13,7 @@ goal: 培養上台口語表達能力
 level: 國小3-6年級(以9月學期就讀年級為準)
 content: 課程共分ABCD四套教材，每學期一套。內容有主持.記者.讀家報導.看圖.接力.朗讀.相聲等多種主題，讓孩子在有趣的表達練習中，學好口語表達。
 practice: 課程中練習上台，學期末時，將邀請家長參加發表會。
+video: ''
 cycle: 每期16週課程
 class_time: 每週上課一次，每堂課100分鐘。
 class_size: 每班最多12人
@@ -28,7 +29,9 @@ signup_period: 自公告課表起，至開課二週前皆可報名。
 question: 歡迎加入「故事講堂-Line官方帳號」詢問
 phone: 04-23196868
 location: 故事講堂
+sessions: []
 featured: true
 published: true
 order: 3
+registration_url: ''
 ---
