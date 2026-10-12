@@ -86,7 +86,10 @@ async function queryRegistrations(env: Env, params: URLSearchParams): Promise<(R
     const like = `%${q}%`;
     binds.push(like, like, like, like, like, like, like, like, like, q);
   }
-  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY id DESC LIMIT 3000`;
+  // 排序：新網站的報名在最上面（最新的在前），舊站匯入的資料排在後面（依上課日期新到舊）
+  // 不能只用 id 排序：舊站資料是後來才匯入的，id 比匯入前的報名大
+  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+    ORDER BY (legacy_term IS NOT NULL), created_at DESC, id DESC LIMIT 3000`;
   const { results } = await env.DB.prepare(sql).bind(...binds).all<Registration>();
   return results.map((r) => ({ ...r, expired: isExpired(r) }));
 }

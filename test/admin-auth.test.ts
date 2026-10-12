@@ -169,6 +169,20 @@ describe('後台操作', () => {
     expect(sessions.legacy_terms).toEqual([{ term: '114夏令營', n: 1 }]);
   });
 
+  it('報名列表：新網站報名在最上面（新到舊），之後才匯入的舊站資料排在後面', async () => {
+    const first = (await register('two-seats')).body;
+    await db().prepare(
+      `INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name, phone, email,
+        admission, status, amount, legacy_id, legacy_term, created_at, updated_at)
+       VALUES ('old-x', 'legacy', '舊課程', '2025-07-01', '舊學生', '舊家長', '0911222333', 'old@example.com',
+        '正取', '已付費', 0, 1, '114夏令營', '2099-01-01T00:00:00Z', '2099-01-01T00:00:00Z')`,
+    ).run();
+    const second = (await register('two-seats')).body;
+    const rows = (await (await call(adminRequest('/api/admin/registrations'))).json()) as { id: number; legacy_term: string | null }[];
+    expect(rows.map((r) => r.id).slice(0, 2)).toEqual([second.id, first.id]);
+    expect(rows[2].legacy_term).toBe('114夏令營');
+  });
+
   it('操作紀錄需要登入', async () => {
     expect((await call(new Request(`${ORIGIN}/api/admin/audit`))).status).toBe(401);
   });
