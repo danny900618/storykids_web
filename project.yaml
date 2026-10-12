@@ -590,3 +590,5 @@ changelog:
       分開測試與正式環境（T22）：storykids-web＋D1 storykids 為測試環境；新建 storykids-web-production＋D1 storykids-production（wrangler env.production），
       已套用 migration、部署、匯入舊站學生名單 1542 筆（正式資料庫只有舊站名單）。正式機在 PAYMENT_MODE=live 前不開放報名、未設定登入前後台拒絕存取。
       報名管理後台頁首顯示「測試環境／正式環境」。T33 不再需要刪測試資料；T29 改綁正式 Worker；T38 改為關閉正式 Worker 的 workers.dev 網址。
+  - date: 2026-10-12
+    note: 決定不做「複製類別」工具（不想多一個後台）；每學期用內容後台內建「複製」逐篇複製課程（Sveltia 複製時會重新產生時段代號），步驟寫在 README。
