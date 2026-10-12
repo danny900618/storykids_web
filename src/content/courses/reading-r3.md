@@ -3,7 +3,7 @@ title: 閱讀表達R3
 category: 學期班（11509學期）
 audience: 小四~小六
 summary: 學習閱讀理解討論、整理資料、重點摘要、組織內容後上台分享。
-cover: /images/old/course/bfd346d9a830e5d4689de240a97a5b72.jpg
+cover: /images/閱讀表達R4課程圖.png
 images:
   - /images/old/course/a826dec92032ae93f24275ebd8a42e93.jpg
   - /images/old/course/82b69b4c53e8dc9458e964569fe1cee1.jpg
@@ -13,6 +13,7 @@ goal: 學習閱讀理解討論、整理資料、重點摘要、組織內容後�
 level: 小四~小六 (以9月學期就讀年級為準)
 content: 以不同學習主題，引導孩子學習整理重點、摘要，討論、思辨後，練習上台分享主題報告。
 practice: 學期末時，將邀請家長參加發表會。
+video: ''
 cycle: 每期16週課程
 class_time: 每週上課一次，每堂課100分鐘。
 class_size: 每班最多12人
@@ -28,7 +29,9 @@ signup_period: 自公告課表起，至開課二週前皆可報名。
 question: 請加入「故事講堂-Line官方帳號」
 phone: 04-23196868
 location: 故事講堂
+sessions: []
 featured: true
 published: true
 order: 4
+registration_url: ''
 ---
