@@ -21,3 +21,7 @@ docs/old-cms/
 
 # 舊站報名資料（含個資），只匯入 D1，絕不 commit
 old_class/
+
+# 銀行申請書等文件（含公司資料），不放進 repo
+台新*.docx
+台新*.pdf

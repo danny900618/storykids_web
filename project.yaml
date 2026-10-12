@@ -267,6 +267,13 @@ open_questions:
   - id: Q12
     question: 台新虛擬帳號規格書：編碼規則、檢查碼演算法、入帳通知方式（推送 or 對帳檔）、加密與回應格式
     sample: 舊系統通知信中的帳號範例 96989416652781（96989 + 9 碼，共 14 碼）
+    progress: >
+      2026-10-12 取得「台新台幣虛擬帳號自動化傳輸申請書」。建議只申請「虛擬帳號即時傳輸（多通道）」：通道 HTTPS、
+      主機 storykids-web-production.c0981985611.workers.dev、PORT 443、路徑 /api/taishin/notify（Worker 已預留，目前回 501）、
+      格式 JsonV1.1（含轉出帳號／行庫，以規格書為準）、加密「是」、重試 3 次間隔 60 秒、監控「是」。
+      sFTP／FTPs／DMZ-FTPs／AP2AP 需要自有主機或固定 IP，不適用 Workers。
+      待向台新確認：企業代碼、JsonV1.1 規格書與加密方式／金鑰、台新的來源 IP（Worker 端可驗證）、測試環境、
+      能否「新增」通道並與舊系統通道並行，舊系統停用後再「終止」舊通道。
     owner: 補習班 / 舊外包 / 台新
     phase: phase2
   - id: Q13
