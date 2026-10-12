@@ -446,10 +446,12 @@ tasks:
   - id: T30
     title: 正式網域設定：Turnstile Hostnames、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
     status: todo
+    notes: base_url 改到正式網域前，先設定 `wrangler secret put GITHUB_CLIENT_SECRET --env production`（OAuth App 另產生一組），否則內容後台無法登入
     depends_on: [T9]
   - id: T31
     title: 報名管理後台改用 Cloudflare Access（Email 驗證碼），填入 ACCESS_TEAM_DOMAIN／ACCESS_AUD，停用共用密碼
     status: todo
+    notes: 正式環境不設 ADMIN_PASSWORD，上線前正式後台維持拒絕存取；ACCESS_* 填在 wrangler.jsonc 的 env.production.vars
     depends_on: [T9]
   - id: T32
     title: Email 正式寄送：Brevo 驗證網域（DKIM／SPF／DMARC）、Cloudflare Email Routing（service@ → story698@gmail.com）、MAIL_FROM 改回 service@、COMPANY_EMAIL 確認、MAIL_MODE=live
@@ -464,6 +466,7 @@ tasks:
   - id: T34
     title: 開放正式線上報名：台新串接完成後 PAYMENT_MODE=live、SMS_MODE=live；報名尖峰前評估 Workers Paid
     status: todo
+    notes: SMS_MODE=live 前先設定 MITAKE_USERNAME／MITAKE_PASSWORD（--env production），且三竹須開放 Cloudflare 連線（Q14）。正式環境已設定 TURNSTILE_SECRET_KEY、BREVO_API_KEY（2026-10-12）
     depends_on: [T14, T15]
   # ---- 上線後 ----
   - id: T35
