@@ -1,10 +1,12 @@
 // 建置時產生 /data/sessions.json：所有課程的上課時段（名額、費用）
 // 後端 Worker 讀這份檔案決定名額與應繳金額，所以永遠與目前部署的 CMS 內容一致，家長無法竄改金額
 import type { APIRoute } from 'astro';
+import { getCollection } from 'astro:content';
 import { getCourses } from '../../lib/content';
 
 export const GET: APIRoute = async () => {
-  const courses = await getCourses();
+  const [courses, policies] = await Promise.all([getCourses(), getCollection('policies')]);
+  const policyTitle = (id?: string) => policies.find((p) => p.id === id)?.data.title ?? '';
   const sessions = courses.flatMap((c) =>
     // 沒有代號的時段不開放報名（不列入）
     c.data.sessions.flatMap((s) => (s.code ? [{ ...s, code: s.code }] : [])).map((s) => ({
@@ -21,6 +23,11 @@ export const GET: APIRoute = async () => {
       cycle: c.data.cycle ?? '',
       fee_note: c.data.fee_note ?? '',
       location: s.location ?? c.data.location ?? '故事講堂',
+      // 報名須知（報名頁第二步顯示，家長同意的辦法名稱也會存進報名資料）
+      makeup_rule: policyTitle(c.data.makeup_rule) ? c.data.makeup_rule : '',
+      makeup_rule_title: policyTitle(c.data.makeup_rule),
+      refund_rule: policyTitle(c.data.refund_rule) ? c.data.refund_rule : '',
+      refund_rule_title: policyTitle(c.data.refund_rule),
     })),
   );
 

@@ -50,11 +50,12 @@ const courses = defineCollection({
   schema: z.object({
     // ---- 基本資料 ----
     title: z.string(),
-    // 課程類別，例如「學期班（11509學期）」「115夏令營」
+    // 課程類別：從「課程類別」集合選擇，存的是類別名稱，例如「學期班（11509學期）」「115夏令營」
+    // 找不到對應類別時（例如類別改名），課程仍會以這個名稱自成一組顯示
     category: z
       .string()
       .nullish()
-      .transform((v) => v?.trim() || '學期班'),
+      .transform((v) => v?.trim() || '其他課程'),
     // 適合對象（課程卡片上的短標籤），例如「小一~小二」
     audience: optionalText,
     // 課程簡介（課程卡片上顯示）
@@ -73,7 +74,10 @@ const courses = defineCollection({
     cycle: optionalText, // 上課週期，例如「五天主題課程30小時」
     class_time: optionalText, // 上課時間，例如「早上9：00-12：00上課…」
     class_size: optionalText, // 上課人數
-    makeup_policy: optionalText, // 補課辦法
+    makeup_policy: optionalText, // 補課辦法（課程頁顯示的簡短說明）
+    // ---- 報名須知（線上報名第二步，家長勾選同意後才能填寫資料） ----
+    makeup_rule: optionalText, // 補課辦法：「報名辦法」集合的檔名（id）
+    refund_rule: optionalText, // 退費辦法：「報名辦法」集合的檔名（id）
     // ---- 課程學費 ----
     price: optionalText, // 預約費用（顯示用文字）
     fee_note: optionalText, // 費用說明（退費規定等），也會出現在報名通知信
@@ -115,6 +119,28 @@ const courses = defineCollection({
     order: orderNumber,
     // 外部報名連結；未設定上課時段時使用（未填寫時用網站設定中的預設報名連結）
     registration_url: optionalText,
+  }),
+});
+
+// 課程類別：選單「課程介紹」的子選單、課程介紹頁的分組（對應舊站的課程分類，例如「115夏令營」）
+const categories = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/categories' }),
+  schema: z.object({
+    title: z.string(),
+    // 類別頁上方的簡短說明
+    description: optionalText,
+    order: orderNumber,
+    published: bool(true),
+  }),
+});
+
+// 報名辦法：補課辦法、退費辦法。課程各選一份，線上報名時顯示給家長，勾選同意後才能填寫資料
+const policies = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/policies' }),
+  schema: z.object({
+    // 後台選擇時看到的名稱，例如「寒暑假營隊」「學期班」
+    title: z.string(),
+    kind: z.enum(['補課辦法', '退費辦法']),
   }),
 });
 
@@ -169,4 +195,4 @@ const teachers = defineCollection({
   }),
 });
 
-export const collections = { news, courses, pages, gallery, teachers };
+export const collections = { news, courses, categories, policies, pages, gallery, teachers };

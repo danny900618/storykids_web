@@ -21,7 +21,7 @@ const { Content } = await render(page);
 <BaseLayout title={page.data.title} description={page.data.description || excerpt(page.body, 120)} image={page.data.cover}>
   <PageHeader title={page.data.title} crumbs={[{ label: sectionTitle, href: `/${section}` }]} />
   <div class="container-page grid gap-10 py-12 lg:grid-cols-[220px_1fr]">
-    <nav aria-label={sectionTitle} class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+    <nav aria-label={sectionTitle} class="min-w-0 lg:sticky lg:top-28 lg:self-start">
       <ul class="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible">
         {
           siblings.map((p) => (

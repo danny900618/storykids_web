@@ -66,7 +66,7 @@
 |---|---|---|
 | 網址 | https://網站網址/cms | https://網站網址/admin |
 | 登入 | GitHub 帳號 | Cloudflare Access（Email 驗證碼）或暫時密碼 |
-| 管什麼 | 網站內容，**包含課程的「上課時段」（名額、費用、代號）** | 報名資料：正取／候補、狀態、繳費、匯出 Excel、通知紀錄 |
+| 管什麼 | 網站內容，**包含課程類別、課程的「上課時段」（名額、費用、代號）、報名辦法（補課／退費）** | 報名資料：正取／候補、狀態、繳費、編輯家長資料與優待金額、匯出 Excel、通知紀錄、舊站匯入資料 |
 | 資料在哪 | GitHub | Cloudflare D1 |
 | 設定檔 | [public/cms/config.yml](public/cms/config.yml)、登入 [src/worker/cms-auth.ts](src/worker/cms-auth.ts) | [src/worker/](src/worker/)、[src/pages/admin/](src/pages/admin/) |
 
@@ -74,13 +74,34 @@
 
 ## 報名流程
 
-1. 家長在課程頁選時段 → `/register?session=代號` 填表
+1. 沿用舊站三步驟：**課程預約**（課程頁選時段）→ `/register?session=代號` **資料填寫**（顯示課程選定的補課辦法、退費辦法，勾選同意才能下一步）→ **完成報名**（填寫舊站的報名欄位後送出）。前台不顯示名額與剩餘名額，額滿時按鈕顯示「額滿請候補」
 2. 後端以單一 SQL 判斷名額並寫入（多人同時報名不會超收）
    - 名額內 → **正取**，狀態「等待付費」，產生虛擬帳號，繳費期限為報名日起第 3 天 23:59
    - 額滿 → **候補**，狀態「待處理」，**不產生帳號**
 3. 寄出通知：家長 Email＋簡訊、公司信箱（`COMPANY_EMAIL`）
 4. 入帳 → 對帳（`src/worker/payment.ts` 的 `reconcile()`）→「已付費」→ 寄收據
 5. 逾期未繳自動釋出名額（不需排程，計算名額時排除）；行政可在後台把候補遞補為正取（自動產生帳號並通知）
+6. 後台點學生姓名可修改家長填錯的資料，並填「優待金額」（只做顯示，不改應繳金額與已產生的繳費帳號）
+
+### 課程類別與報名辦法（內容後台）
+
+- **課程類別**：選單「課程介紹」的下拉選單（`/courses/category/[id]`）。課程的類別欄位存的是**類別名稱**，內容後台的課程列表依類別分組；類別改名後要把該類別的課程重新選一次（找不到類別的課程會自成一組顯示，不會消失）
+- **報名辦法**：補課辦法、退費辦法各自可建多份（例如寒暑假營隊、學期班），每個課程各選一份（必填），報名第二步顯示；家長同意的辦法名稱會存在報名資料的 `agreed_policies`
+
+### 舊站報名資料
+
+舊站後台匯出的「課程報名-梯次.xls」用 [scripts/import-legacy.mjs](scripts/import-legacy.mjs) 轉成 SQL 匯入 D1（檔案含個資，放在 `old_class/`，已加入 `.gitignore`，絕不 commit）：
+
+```sh
+node scripts/import-legacy.mjs old_class /tmp/legacy.sql
+npx wrangler d1 execute storykids --remote --file /tmp/legacy.sql   # 本機測試改 --local
+rm /tmp/legacy.sql
+```
+
+- 同一份檔案重複匯入不會重複（梯次＋舊站編號唯一）。上線前再匯出最新一次重新匯入即可補齊
+- 舊站資料沒有報名時間與金額：後台顯示「舊站 梯次」，金額記 0；舊站虛擬帳號存在 `legacy_va`（不放 `va_account`，避免與新帳號衝突或被自動對帳誤認）
+- 時段代號為 `old-` 開頭（不在 CMS，不會被當成已刪除的時段）；舊站資料不能遞補正取／候補，其他欄位與狀態可以修改
+- ⚠️ 清除測試報名時要保留舊站資料：`DELETE ... WHERE legacy_term IS NULL`
 
 ### 測試模式（目前）
 
@@ -112,7 +133,8 @@
 │   ├── content.config.ts     # 內容欄位定義（與 public/cms/config.yml 對應）
 │   ├── pages/                # 網頁；register.astro 報名頁；admin/ 報名管理；data/sessions.json.ts 時段資料
 │   ├── components/  layouts/  lib/  styles/
-│   └── worker/               # 後端：index（路由）、register、admin、auth、payment、notify、sessions、cms-auth（內容後台登入）
+│   └── worker/               # 後端：index（路由）、register、profile（報名欄位檢查）、admin、auth、payment、notify、sessions、cms-auth（內容後台登入）
+├── scripts/import-legacy.mjs # 匯入舊站報名資料（xls → SQL）
 └── .github/workflows/        # 後台上傳圖片自動縮圖
 ```
 

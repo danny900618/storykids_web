@@ -1,12 +1,20 @@
 ---
 // 線上報名：/register?session=時段代號
+// 沿用舊站流程：課程預約（在課程頁選時段）→ 資料填寫（閱讀補課／退費辦法並勾選同意）→ 完成報名（填寫報名資料送出）
 // 頁面本身是靜態的；時段資訊讀 /data/sessions.json，送出後呼叫 /api/register
+import { getCollection, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PageHeader from '../components/PageHeader.astro';
-import { site } from '../lib/site';
 
-const grades = ['幼兒園大班', '國小一年級', '國小二年級', '國小三年級', '國小四年級', '國小五年級', '國小六年級', '國中一年級', '國中二年級', '國中三年級', '其他'];
+const grades = ['幼兒園大班', '國小一年級', '國小二年級', '國小三年級', '國小四年級', '國小五年級', '國小六年級', '國中一年級', '國中二年級', '國中三年級'];
 const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-base focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 focus:outline-none';
+const req = '<span class="text-brand-600">*</span>';
+
+// 所有報名辦法在建置時產生 HTML，依家長選的課程顯示對應的那兩份
+const policies = await Promise.all(
+  (await getCollection('policies')).map(async (p) => ({ id: p.id, Content: (await render(p)).Content })),
+);
+const steps = ['課程預約', '資料填寫', '完成報名'];
 ---
 
 <BaseLayout title="線上報名" description="故事講堂課程線上報名">
@@ -27,78 +35,162 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
       <a href="/courses" class="btn-primary mt-6">看課程介紹</a>
     </div>
 
-    <!-- 報名表 -->
-    <div id="form-wrap" class="hidden">
+    <div id="flow" class="hidden">
+      <!-- 步驟：課程預約 → 資料填寫 → 完成報名 -->
+      <ol class="mb-8 flex items-center justify-center gap-2 text-sm font-bold sm:gap-4 sm:text-base" aria-label="報名步驟">
+        {
+          steps.map((label, i) => (
+            <>
+              {i > 0 && <li aria-hidden="true" class="text-ink-500">»</li>}
+              <li data-step={i} class="rounded-full bg-ink-900/5 px-4 py-2 text-ink-500 data-[state=current]:bg-brand-600 data-[state=current]:text-white data-[state=done]:bg-brand-100 data-[state=done]:text-brand-700">
+                {label}
+              </li>
+            </>
+          ))
+        }
+      </ol>
+
+      <!-- 報名時段 -->
       <div class="rounded-2xl bg-brand-50 p-5 ring-1 ring-brand-200">
-        <p class="text-sm font-bold text-brand-700">報名時段</p>
+        <p class="text-sm font-bold text-brand-700" id="s-category"></p>
         <p class="mt-1 text-xl font-bold text-ink-900" id="s-title"></p>
         <p class="mt-1 text-ink-700" id="s-time"></p>
         <p class="mt-2 flex flex-wrap gap-x-4 text-sm">
           <span class="font-bold text-brand-700" id="s-price"></span>
-          <span class="font-bold" id="s-remaining"></span>
+          <span class="font-bold text-brand-600" id="s-full"></span>
         </p>
       </div>
 
-      <form id="register-form" class="mt-8 space-y-5" novalidate>
+      <!-- 第二步：資料填寫（閱讀補課辦法、退費辦法並同意） -->
+      <section id="step-policy" class="mt-8 hidden">
+        <h2 class="rounded-xl bg-brand-500 px-5 py-2.5 text-lg font-bold text-brand-700">一、補課辦法</h2>
+        <div class="prose-story no-lead mt-4 px-1" id="makeup-body"></div>
+        <h2 class="mt-8 rounded-xl bg-brand-500 px-5 py-2.5 text-lg font-bold text-brand-700">二、退費辦法</h2>
+        <div class="prose-story no-lead mt-4 px-1" id="refund-body"></div>
+
+        <label class="mt-8 flex items-start gap-3 rounded-xl bg-white p-4 ring-1 ring-black/10">
+          <input id="agree" type="checkbox" class="mt-1 size-5 accent-brand-600" />
+          <span class="font-bold text-brand-600">我已閱讀並同意以上補課辦法與退費辦法</span>
+        </label>
+        <button type="button" id="to-form" class="btn-primary mt-6 w-full py-3.5 text-lg disabled:cursor-not-allowed disabled:opacity-50" disabled>確認報名，下一步</button>
+      </section>
+
+      <!-- 第三步：完成報名（填寫報名資料） -->
+      <form id="step-form" class="mt-8 hidden space-y-5" novalidate>
+        <p class="text-sm text-ink-500"><Fragment set:html={req} /> 為必填欄位</p>
         <div class="grid gap-5 sm:grid-cols-2">
           <label class="block">
-            <span class="font-bold">學生姓名 <span class="text-brand-600">*</span></span>
-            <input name="student_name" required maxlength="30" autocomplete="off" class={input} />
+            <span class="font-bold">學生姓名 <Fragment set:html={req} /></span>
+            <input name="student_name" required maxlength="30" autocomplete="off" placeholder="範例：王大名" class={input} />
+          </label>
+          <fieldset>
+            <legend class="font-bold">性別 <Fragment set:html={req} /></legend>
+            <div class="mt-1 flex gap-3">
+              {
+                ['男', '女'].map((g) => (
+                  <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-black/15 bg-white px-4 py-3 has-checked:border-brand-600 has-checked:bg-brand-50">
+                    <input type="radio" name="gender" value={g} required class="size-4 accent-brand-600" />
+                    {g}
+                  </label>
+                ))
+              }
+            </div>
+          </fieldset>
+          <label class="block">
+            <span class="font-bold">就讀學校 <Fragment set:html={req} /></span>
+            <input name="school" required maxlength="50" class={input} />
           </label>
           <label class="block">
-            <span class="font-bold">家長姓名 <span class="text-brand-600">*</span></span>
-            <input name="parent_name" required maxlength="30" autocomplete="name" class={input} />
-          </label>
-          <label class="block">
-            <span class="font-bold">學校</span>
-            <input name="school" maxlength="50" class={input} />
-          </label>
-          <label class="block">
-            <span class="font-bold">年級</span>
-            <select name="grade" class={input}>
+            <span class="font-bold">目前就讀年級 <Fragment set:html={req} /></span>
+            <select name="grade" required class={input}>
               <option value="">請選擇</option>
               {grades.map((g) => <option>{g}</option>)}
             </select>
           </label>
           <label class="block">
-            <span class="font-bold">家長手機 <span class="text-brand-600">*</span></span>
-            <input name="phone" required inputmode="tel" autocomplete="tel" placeholder="0912345678" maxlength="12" class={input} />
+            <span class="font-bold">家長姓名 <Fragment set:html={req} /></span>
+            <input name="parent_name" required maxlength="30" autocomplete="name" class={input} />
+          </label>
+          <label class="block">
+            <span class="font-bold">聯絡電話</span>
+            <input name="tel" inputmode="tel" maxlength="20" placeholder="範例：04-23196868" class={input} />
+          </label>
+          <label class="block">
+            <span class="font-bold">行動電話 <Fragment set:html={req} /></span>
+            <input name="phone" required inputmode="tel" autocomplete="tel" placeholder="範例：0933111222" maxlength="12" class={input} />
             <span class="mt-1 block text-xs text-ink-500">繳費帳號與通知會以簡訊寄送</span>
           </label>
           <label class="block">
-            <span class="font-bold">Email <span class="text-brand-600">*</span></span>
+            <span class="font-bold">電子信箱 <Fragment set:html={req} /></span>
             <input name="email" type="email" required autocomplete="email" maxlength="100" class={input} />
           </label>
         </div>
+
+        <fieldset>
+          <legend class="font-bold">飲食習慣 <span class="text-sm font-normal text-ink-500">※僅提供寒暑假班</span></legend>
+          <div class="mt-1 flex gap-3 sm:max-w-sm">
+            {
+              ['葷', '方便素'].map((d) => (
+                <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-black/15 bg-white px-4 py-3 has-checked:border-brand-600 has-checked:bg-brand-50">
+                  <input type="radio" name="diet" value={d} class="size-4 accent-brand-600" />
+                  {d}
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+
+        <div class="grid gap-5 sm:grid-cols-[10rem_1fr]">
+          <label class="block">
+            <span class="font-bold">郵遞區號 <Fragment set:html={req} /></span>
+            <input name="zip" required inputmode="numeric" maxlength="6" placeholder="3 或 5 碼" autocomplete="postal-code" class={input} />
+            <a href="https://www.post.gov.tw/post/internet/Postal/index.jsp?ID=208" target="_blank" rel="noopener" class="mt-1 inline-block text-xs text-brand-700 underline">查詢郵遞區號</a>
+          </label>
+          <label class="block">
+            <span class="font-bold">地址 <Fragment set:html={req} /></span>
+            <input name="address" required maxlength="100" placeholder="請輸入完整地址" autocomplete="street-address" class={input} />
+          </label>
+        </div>
+
         <label class="block">
-          <span class="font-bold">備註</span>
+          <span class="font-bold">學生狀況說明／備註</span>
           <textarea name="note" rows="3" maxlength="500" class={input} placeholder="例如：孩子的特殊需求、想詢問的事項"></textarea>
         </label>
         <!-- 防機器人欄位：畫面上看不到，一般使用者不會填寫 -->
         <input name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
 
-        <label class="flex items-start gap-3 rounded-xl bg-white p-4 ring-1 ring-black/10">
-          <input name="agree" type="checkbox" class="mt-1 size-5 accent-brand-600" />
-          <span class="text-sm leading-relaxed text-ink-700">
-            我同意{site.full_name}蒐集以上個人資料，用於本次課程報名、繳費通知與聯繫，不會提供給第三方。
-          </span>
-        </label>
-
         <!-- Cloudflare Turnstile 防機器人驗證（有設定 site key 才會顯示） -->
         <div id="turnstile"></div>
 
         <p id="form-error" class="hidden rounded-xl bg-red-50 p-4 text-red-700" role="alert"></p>
-        <button type="submit" class="btn-primary w-full py-3.5 text-lg disabled:opacity-60" id="submit-btn">送出報名</button>
+        <div class="flex flex-col-reverse gap-3 sm:flex-row">
+          <button type="button" id="back" class="btn-outline py-3.5 sm:w-40">上一步</button>
+          <button type="submit" class="btn-primary flex-1 py-3.5 text-lg disabled:opacity-60" id="submit-btn">確認送出</button>
+        </div>
       </form>
     </div>
 
     <!-- 報名結果 -->
     <div id="result" class="hidden" aria-live="polite"></div>
+
+    <!-- 各課程的補課／退費辦法（建置時產生，依課程顯示對應的一份） -->
+    <div hidden>
+      {
+        policies.map(({ id, Content }) => (
+          <template data-policy={id}>
+            <Content />
+          </template>
+        ))
+      }
+    </div>
   </div>
 </BaseLayout>
 
 <script>
-  interface Session { code: string; name: string; time: string; price: number; capacity: number; open: boolean; course_id: string; course_title: string }
+  interface Session {
+    code: string; name: string; period: string; time: string; location: string; price: number; open: boolean;
+    course_id: string; course_title: string; category: string; fee_note: string; makeup_rule: string; refund_rule: string;
+  }
   interface Result {
     id: number; admission: '正取' | '候補'; waitlist_position: number | null; course_title: string; session_name: string;
     session_time: string; student_name: string; amount: number; va_account: string | null; va_expires_at: string | null; test_mode: boolean;
@@ -111,6 +203,25 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
     new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 
   const code = new URLSearchParams(location.search).get('session') ?? '';
+
+  // 步驟：1 = 資料填寫（同意辦法）、2 = 完成報名（填資料）、3 = 已送出
+  function setStep(step: number) {
+    document.querySelectorAll<HTMLElement>('[data-step]').forEach((el) => {
+      const i = Number(el.dataset.step);
+      el.dataset.state = i < step ? 'done' : i === step ? 'current' : '';
+    });
+    $('step-policy').classList.toggle('hidden', step !== 1);
+    $('step-form').classList.toggle('hidden', step !== 2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 把建置時產生的辦法內容放進畫面；課程沒有選辦法時顯示替代文字
+  function showPolicy(targetId: string, policyId: string, fallback: string) {
+    const tpl = policyId ? document.querySelector<HTMLTemplateElement>(`template[data-policy="${CSS.escape(policyId)}"]`) : null;
+    const target = $(targetId);
+    if (tpl) target.replaceChildren(tpl.content.cloneNode(true));
+    else target.innerHTML = `<p class="whitespace-pre-line">${esc(fallback)}</p>`;
+  }
 
   // Cloudflare Turnstile
   type Turnstile = { render: (el: HTMLElement, opts: Record<string, unknown>) => string; reset: (id?: string) => void };
@@ -149,24 +260,28 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
       $('no-session').classList.remove('hidden');
       return;
     }
+    $('s-category').textContent = s.category;
     $('s-title').textContent = `${s.course_title}｜${s.name}`;
-    $('s-time').textContent = s.time;
-    $('s-price').textContent = money(s.price);
-    $('form-wrap').classList.remove('hidden');
+    $('s-time').textContent = [s.period, s.time, s.location && `上課地點：${s.location}`].filter(Boolean).join('　');
+    $('s-price').textContent = `預約費用 ${money(s.price)}`;
+    showPolicy('makeup-body', s.makeup_rule, '請洽講堂詢問補課辦法。');
+    showPolicy('refund-body', s.refund_rule, s.fee_note || '請洽講堂詢問退費辦法。');
+    $('flow').classList.remove('hidden');
+    setStep(1);
 
-    // 即時剩餘名額
+    // 額滿提醒（不顯示剩餘名額）
     fetch('/api/availability', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((data: Record<string, { remaining: number }>) => {
-        const info = data[code];
-        if (!info) return;
-        $('s-remaining').innerHTML =
-          info.remaining > 0
-            ? `<span class="text-green-700">剩餘名額 ${info.remaining} 人</span>`
-            : '<span class="text-brand-600">已額滿，送出後將列為候補</span>';
+      .then((data: Record<string, { full: boolean }>) => {
+        if (data[code]?.full) $('s-full').textContent = '已額滿，送出後將列為候補';
       })
       .catch(() => {});
   }
+
+  const agree = $<HTMLInputElement>('agree');
+  agree.addEventListener('change', () => ($<HTMLButtonElement>('to-form').disabled = !agree.checked));
+  $('to-form').addEventListener('click', () => agree.checked && setStep(2));
+  $('back').addEventListener('click', () => setStep(1));
 
   function showResult(r: Result) {
     const testNote = r.test_mode
@@ -193,12 +308,11 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
            <p class="mt-4 text-ink-700">${esc(r.student_name)}「${esc(r.course_title)}｜${esc(r.session_name)}」已登記候補（報名編號 ${r.id}）。如有名額釋出，我們將主動與您聯繫，屆時再提供繳費帳號。</p>`;
     $('result').innerHTML = `<div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5 sm:p-8">${body}${testNote}
       <div class="mt-8 flex flex-wrap gap-3"><a href="/courses" class="btn-outline">回課程介紹</a><a href="/" class="btn-outline">回首頁</a></div></div>`;
-    $('form-wrap').classList.add('hidden');
+    setStep(3);
     $('result').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  $('register-form').addEventListener('submit', async (e) => {
+  $('step-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
     const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
@@ -211,7 +325,7 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, agree: data.agree === 'on', session_code: code, turnstile_token: turnstileToken }),
+        body: JSON.stringify({ ...data, agree: agree.checked, session_code: code, turnstile_token: turnstileToken }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || '報名失敗，請稍後再試');
@@ -225,7 +339,7 @@ const input = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-4 py-3 
         turnstileToken = '';
       }
       btn.disabled = false;
-      btn.textContent = '送出報名';
+      btn.textContent = '確認送出';
     }
   });
 

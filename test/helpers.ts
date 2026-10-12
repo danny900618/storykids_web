@@ -9,7 +9,7 @@ export const ADMIN_PASSWORD = 'test-password-123456';
 
 // 測試用時段（不依賴網站內容）
 export const SESSIONS: Session[] = [
-  { code: 'two-seats', name: '測試 A', time: '週三', capacity: 2, price: 11000, open: true, course_id: 'c1', course_title: '測試課程', category: '115夏令營', cycle: '五天主題課程30小時', period: '2026-08-24~2026-08-28', fee_note: '含教材與午餐', location: '故事講堂' },
+  { code: 'two-seats', name: '測試 A', time: '週三', capacity: 2, price: 11000, open: true, course_id: 'c1', course_title: '測試課程', category: '115夏令營', makeup_rule: 'makeup-camp', makeup_rule_title: '寒暑假營隊', refund_rule: 'refund-camp', refund_rule_title: '寒暑假營隊', cycle: '五天主題課程30小時', period: '2026-08-24~2026-08-28', fee_note: '含教材與午餐', location: '故事講堂' },
   { code: 'one-seat', name: '測試 B', time: '週六', capacity: 1, price: 6000, open: true, course_id: 'c1', course_title: '測試課程' },
   { code: 'closed', name: '測試 C', time: '週日', capacity: 5, price: 5000, open: false, course_id: 'c1', course_title: '測試課程' },
 ];
@@ -71,6 +71,9 @@ export function validRegistration(sessionCode: string, extra: Record<string, unk
     grade: '國小一年級',
     phone: `09${String(10000000 + studentCounter).slice(-8)}`,
     email: `parent${studentCounter}@example.com`,
+    gender: '女',
+    zip: '408',
+    address: '台中市南屯區測試路1號',
     agree: true,
     ...extra,
   };

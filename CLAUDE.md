@@ -4,9 +4,10 @@
 
 ## 規則
 
-- **個資（學生、家長、報名資料）只能存在 Cloudflare D1**，絕不寫進 repo、內容檔或 log。
-- 內容（消息、課程與上課時段、頁面、老師、相簿、網站設定）放在 `src/content/`，由內容後台 `/cms`（Sveltia CMS，設定檔 `public/cms/config.yml`）編輯；新增內容欄位時，要同步更新 `src/content.config.ts` 與 `public/cms/config.yml`。Sveltia 欄位預設必填，選填欄位要加 `required: false`。
-- 不使用 Tailwind CDN、不在前端用 JS 渲染內容；內容一律於建置時產生 HTML。例外：剩餘名額、報名表、報名管理後台需要即時資料，透過 `/api/*` 取得。
+- **個資（學生、家長、報名資料）只能存在 Cloudflare D1**，絕不寫進 repo、內容檔或 log。舊站匯出的報名 xls 放 `old_class/`（已 gitignore），用 `scripts/import-legacy.mjs` 匯入；清除測試資料時要保留 `legacy_term` 不為空的舊站資料。
+- 內容（消息、課程類別、課程與上課時段、報名辦法、頁面、老師、相簿、網站設定）放在 `src/content/`，由內容後台 `/cms`（Sveltia CMS，設定檔 `public/cms/config.yml`）編輯；新增內容欄位時，要同步更新 `src/content.config.ts` 與 `public/cms/config.yml`。Sveltia 欄位預設必填，選填欄位要加 `required: false`。
+- 不使用 Tailwind CDN、不在前端用 JS 渲染內容；內容一律於建置時產生 HTML。例外：額滿狀態、報名表、報名管理後台需要即時資料，透過 `/api/*` 取得。前台不顯示名額與剩餘名額。
+- 報名欄位檢查集中在 `src/worker/profile.ts`（線上報名與後台編輯共用）。
 - 程式註解與 UI 文字使用繁體中文。
 - 圖片放在 `public/images/`（後台上傳也存這裡，內容欄位存 `/images/...` 路徑）；PDF 放 `public/files/`。`public/images/old/` 是從舊站搬來的圖片。
 - 後台清空欄位時可能寫入 `null` 或空字串，`content.config.ts` 的選填欄位必須接受 nullish。

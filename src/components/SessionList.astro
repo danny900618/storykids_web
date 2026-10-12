@@ -1,6 +1,6 @@
 ---
-// 課程頁的「上課時段」：名稱、時間、費用、剩餘名額（即時向後端查詢）與報名按鈕
-// 剩餘名額為 0 時仍可報名，會自動列為候補（不產生繳費帳號）
+// 課程頁的「上課時段」：名稱、時間、費用與報名按鈕（不顯示名額與剩餘名額）
+// 額滿時按鈕改為「額滿請候補」（即時向後端查詢），仍可報名，會自動列為候補（不產生繳費帳號）
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
@@ -11,7 +11,7 @@ const { sessions, defaultLocation } = Astro.props;
 const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
 ---
 
-<section id="sessions" class="scroll-mt-24">
+<section id="sessions" class="scroll-mt-28">
   <h2 class="border-l-[6px] border-brand-500 pl-3 text-xl font-bold sm:text-2xl">上課時段</h2>
   <p class="mt-2 text-sm text-ink-500">名額有限，額滿後仍可報名並自動列為候補，如有名額釋出將主動通知。</p>
   <ul class="mt-6 space-y-4">
@@ -34,10 +34,7 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
             )}
             <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <span class="font-bold text-brand-700">{money(s.price)}</span>
-              <span class="text-ink-500">名額 {s.capacity} 人</span>
-              <span class="font-bold" data-remaining>
-                <span class="text-ink-500">剩餘名額查詢中…</span>
-              </span>
+              <span class="font-bold text-brand-600" data-full />
             </p>
           </div>
           {s.open && s.code ? (
@@ -54,32 +51,22 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
 </section>
 
 <script>
-  // 向後端查詢即時剩餘名額
+  // 向後端查詢哪些時段已額滿
   async function loadAvailability() {
     const items = document.querySelectorAll<HTMLElement>('[data-session]');
     if (!items.length) return;
     try {
       const res = await fetch('/api/availability', { cache: 'no-store' });
-      if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as Record<string, { remaining: number; waitlist: number; open: boolean }>;
+      if (!res.ok) return;
+      const data = (await res.json()) as Record<string, { full: boolean }>;
       for (const el of items) {
-        const info = data[el.dataset.session!];
-        const target = el.querySelector('[data-remaining]')!;
+        if (!data[el.dataset.session!]?.full) continue;
+        el.querySelector('[data-full]')!.textContent = '已額滿';
         const button = el.querySelector<HTMLAnchorElement>('[data-register]');
-        if (!info) {
-          target.innerHTML = '';
-          continue;
-        }
-        if (info.remaining > 0) {
-          target.innerHTML = `<span class="text-green-700">剩餘名額 ${info.remaining} 人</span>`;
-        } else {
-          target.innerHTML = `<span class="text-brand-600">已額滿${info.waitlist ? `（候補 ${info.waitlist} 人）` : ''}</span>`;
-          if (button) button.textContent = '額滿請候補';
-        }
+        if (button) button.textContent = '額滿請候補';
       }
     } catch {
-      // 查詢失敗時不顯示名額，但仍可報名
-      document.querySelectorAll('[data-remaining]').forEach((el) => (el.innerHTML = ''));
+      // 查詢失敗時照常顯示「我要預約」，送出後由後端判斷正取或候補
     }
   }
   loadAvailability();

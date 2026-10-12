@@ -121,6 +121,54 @@ describe('後台操作', () => {
     expect(items[0].action).toBe('匯出名單');
   });
 
+  it('編輯報名資料：修改電話並填優待金額，應繳金額與繳費帳號不變，操作紀錄記下變更', async () => {
+    const reg = (await register('two-seats')).body;
+    const before = (await getRegistration(reg.id))!;
+    const res = await call(adminRequest(`/api/admin/registrations/${reg.id}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ...before, phone: '0933111222', discount_amount: '500' }),
+    }));
+    expect(res.status).toBe(200);
+    const row = (await getRegistration(reg.id))!;
+    expect(row.phone).toBe('0933111222');
+    expect(row.discount_amount).toBe(500);
+    expect(row.amount).toBe(before.amount);
+    expect(row.va_account).toBe(before.va_account);
+    const audit = await db().prepare(`SELECT detail FROM audit_log WHERE registration_id = ? AND action = '編輯資料'`).bind(reg.id).first<{ detail: string }>();
+    expect(audit!.detail).toContain('行動電話');
+    expect(audit!.detail).toContain('優待金額');
+  });
+
+  it('編輯報名資料：格式錯誤會被擋下', async () => {
+    const reg = (await register('two-seats')).body;
+    const before = (await getRegistration(reg.id))!;
+    const res = await call(adminRequest(`/api/admin/registrations/${reg.id}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ...before, phone: '123', discount_amount: -1 }),
+    }));
+    expect(res.status).toBe(400);
+    expect((await getRegistration(reg.id))!.phone).toBe(before.phone);
+  });
+
+  it('舊站匯入的資料可篩選，不能遞補，也不會被當成「CMS 已刪除的時段」', async () => {
+    await db().prepare(
+      `INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name, phone, email,
+        admission, status, amount, legacy_id, legacy_term, legacy_va, created_at, updated_at)
+       VALUES ('old-abc', 'legacy', '舊課程', '2025-07-01', '舊學生', '舊家長', '0911222333', 'old@example.com',
+        '正取', '已付費', 0, 1, '114夏令營', '96989400000001', '2025-07-01T00:00:00Z', '2025-07-01T00:00:00Z')`,
+    ).run();
+    await register('two-seats');
+    const legacy = (await (await call(adminRequest('/api/admin/registrations?source=legacy&term=114夏令營'))).json()) as { id: number; legacy_va: string }[];
+    expect(legacy).toHaveLength(1);
+    expect(legacy[0].legacy_va).toBe('96989400000001');
+    const fresh = (await (await call(adminRequest('/api/admin/registrations?source=new'))).json()) as unknown[];
+    expect(fresh).toHaveLength(1);
+    expect((await patch(legacy[0].id, { admission: '候補' })).status).toBe(400);
+    const sessions = (await (await call(adminRequest('/api/admin/sessions'))).json()) as { orphans: string[]; legacy_terms: { term: string; n: number }[] };
+    expect(sessions.orphans).not.toContain('old-abc');
+    expect(sessions.legacy_terms).toEqual([{ term: '114夏令營', n: 1 }]);
+  });
+
   it('操作紀錄需要登入', async () => {
     expect((await call(new Request(`${ORIGIN}/api/admin/audit`))).status).toBe(401);
   });

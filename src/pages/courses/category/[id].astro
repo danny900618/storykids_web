@@ -1,0 +1,24 @@
+---
+// 課程類別頁：選單「課程介紹」的子選單點進來，列出該類別的課程（對應舊站 course.php?cat=）
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import CourseCard from '../../../components/CourseCard.astro';
+import { getCourseGroups } from '../../../lib/content';
+
+export const getStaticPaths = (async () => {
+  const groups = await getCourseGroups();
+  return groups.filter((g) => g.id).map((group) => ({ params: { id: group.id! }, props: { group } }));
+}) satisfies GetStaticPaths;
+
+const { group } = Astro.props;
+---
+
+<BaseLayout title={group.title} description={group.description}>
+  <PageHeader title={group.title} subtitle={group.description} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+  <div class="container-page py-12">
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {group.courses.map((course) => <CourseCard course={course} />)}
+    </div>
+  </div>
+</BaseLayout>

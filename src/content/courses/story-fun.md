@@ -1,6 +1,6 @@
 ---
 title: 趣味說故事
-category: 11509學期
+category: 學期班（11509學期）
 audience: 小一~小二
 summary: 藉雙人主題故事說演，培養基本的上台表達力；也藉節慶故事小短文，來練習基礎的閱讀理解和整理哦。
 cover: /images/old/course/0a7046e32095907825614e7a6a43754c.jpg
@@ -21,6 +21,8 @@ makeup_policy: |-
   考量學習成效，每學期提供二次補課：
   1.可至相同主題與進度課程時段補課。
    2.與老師另約30分鐘補課(原上課時段，提前或延後30分鐘)。
+makeup_rule: makeup-semester
+refund_rule: refund-semester
 price: NT$ 11,000 / 期
 fee_note: |-
   650元*16堂課=10400元。

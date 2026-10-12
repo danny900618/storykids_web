@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { call, db, getRegistration, nextIp, register, registerRequest, resetDb, validRegistration, ORIGIN } from './helpers';
 
-const availability = async () => (await (await call(new Request(`${ORIGIN}/api/availability`))).json()) as Record<string, { remaining: number; waitlist: number }>;
+const availability = async () => (await (await call(new Request(`${ORIGIN}/api/availability`))).json()) as Record<string, Record<string, unknown>>;
 
 beforeEach(resetDb);
 
@@ -18,8 +18,10 @@ describe('名額與候補', () => {
     expect(second.body.va_account).toBeNull();
     expect(second.body.waitlist_position).toBe(1);
 
+    // 前台只知道是否額滿，不提供剩餘名額與候補人數
     const a = await availability();
-    expect(a['one-seat']).toMatchObject({ remaining: 0, waitlist: 1 });
+    expect(a['one-seat']).toEqual({ full: true, open: true });
+    expect(a['two-seats']).toEqual({ full: false, open: true });
   });
 
   it('多人同時報名不會超收（10 人搶 2 個名額）', async () => {
@@ -59,9 +61,22 @@ describe('防竄改與輸入驗證', () => {
     expect(res.status).toBe(400);
     const { error } = (await res.json()) as { error: string };
     expect(error).toContain('學生姓名');
-    expect(error).toContain('手機');
+    expect(error).toContain('行動電話');
     expect(error).toContain('Email');
-    expect(error).toContain('個人資料');
+    expect(error).toContain('補課辦法與退費辦法');
+  });
+
+  it('沿用舊站必填：性別、學校、年級、郵遞區號、地址；選項只能選表單上的值', async () => {
+    const res = await call(registerRequest(validRegistration('two-seats', { gender: '', school: '', grade: '其他', zip: '', address: '', diet: '全素' })));
+    const { error } = (await res.json()) as { error: string };
+    expect(res.status).toBe(400);
+    for (const word of ['性別', '就讀學校', '年級', '郵遞區號', '地址', '飲食習慣']) expect(error).toContain(word);
+  });
+
+  it('報名資料存下新欄位與同意的辦法名稱', async () => {
+    const { body } = await register('two-seats', { tel: '04-23196868', diet: '方便素' });
+    const row = (await getRegistration(body.id))!;
+    expect(row).toMatchObject({ gender: '女', tel: '04-23196868', zip: '408', diet: '方便素', agreed_policies: '補課辦法：寒暑假營隊；退費辦法：寒暑假營隊' });
   });
 
   it('同一位學生不能重複報名同一時段', async () => {

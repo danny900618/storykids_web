@@ -13,6 +13,31 @@ export async function getCourses() {
   );
 }
 
+// 課程依類別分組：類別依「課程類別」的排序；課程的類別找不到對應（例如類別改名後課程沒重選）時自成一組排在最後
+// 只回傳有課程的類別；id 為類別頁網址 /courses/category/[id]（找不到對應類別的組沒有 id）
+export async function getCourseGroups() {
+  const [courses, categories] = await Promise.all([
+    getCourses(),
+    getCollection('categories', ({ data }) => data.published),
+  ]);
+  categories.sort((a, b) => a.data.order - b.data.order);
+  const groups = categories.map((c) => ({
+    id: c.id as string | undefined,
+    title: c.data.title,
+    description: c.data.description,
+    courses: courses.filter((course) => course.data.category === c.data.title),
+  }));
+  // 類別未啟用（published: false）的課程不顯示；完全找不到類別的課程才自成一組
+  const allTitles = new Set((await getCollection('categories')).map((c) => c.data.title));
+  for (const course of courses) {
+    if (allTitles.has(course.data.category)) continue;
+    let group = groups.find((g) => !g.id && g.title === course.data.category);
+    if (!group) groups.push((group = { id: undefined, title: course.data.category, description: undefined, courses: [] }));
+    group.courses.push(course);
+  }
+  return groups.filter((g) => g.courses.length > 0);
+}
+
 export async function getPages(section: 'about' | 'info') {
   const items = await getCollection(
     'pages',

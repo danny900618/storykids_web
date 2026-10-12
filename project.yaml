@@ -247,6 +247,10 @@ open_questions:
   - id: Q7
     question: 舊系統資料（報名資料、照片原檔）能否請外包完整匯出？
     owner: 補習班
+    status: partial
+    answer: >
+      2026-10-12 取得舊站後台匯出的報名資料 xls（113夏令營～115夏令營共 11 個梯次、1542 筆），已用 scripts/import-legacy.mjs 匯入 D1。
+      舊站匯出沒有報名時間與金額。照片原檔尚未取得。上線前再匯出一次最新資料重新匯入（重複的會自動略過）。
   - id: Q8
     question: 「幫孩子鼓掌」有幾篇使用學生真實姓名（如 楊軒智、宇宸、翊皓、唯昕），新站是否保留？
     owner: 補習班
@@ -271,12 +275,21 @@ open_questions:
     phase: phase2
     status: partial
     answer: >
-      2026-10-05 已取得帳號密碼。尚待：設定 MITAKE_USERNAME／MITAKE_PASSWORD secrets、確認帳號類型（企業／個人，對應 MITAKE_API_URL）、
+      2026-10-05 已取得帳號密碼；2026-10-12 確認是在「三站」（sms2.mitake.com.tw）登入＝企業帳號，對應 MITAKE_API_URL 的 smsapi.mitake.com.tw（已設定）。
+      尚待：設定 MITAKE_USERNAME／MITAKE_PASSWORD secrets、
       是否已開通 HTTP API、舊系統簡訊是否由此帳號發送（登入三竹後台看發送紀錄）
   - id: Q14
     question: 台新、三竹是否要求固定 IP 白名單？（Cloudflare Workers 沒有固定出口 IP）
     owner: 補習班 / 台新 / 三竹
     phase: phase2
+    status: partial
+    answer: >
+      2026-10-12 實測：後台「發測試簡訊」從 Cloudflare Worker 連 smsapi.mitake.com.tw 得到 HTTP 522（連線逾時，連不上三竹主機）；
+      同時從台灣的電腦直接連線正常（回 statuscode=e 帳密錯誤＝主機有回應）。推測三竹主機擋了 Cloudflare／海外 IP（在網路層直接丟掉連線，不是回錯誤代碼）。
+      待補習班詢問三竹：是否限制海外或特定 IP、能否開放（Cloudflare IP 範圍 https://www.cloudflare.com/ips/）。
+      若不能開放：改用台灣固定 IP 的轉發主機（每月費用＋維護），或改用 Cloudflare 連得到的簡訊服務。程式的發送參數已確認正確。
+      2026-10-12 再以 wrangler dev --remote 從 Cloudflare 網路實測（未部署）：smsapi.mitake.com.tw 的 https 與 http、smsb2c.mitake.com.tw 都連線逾時（20 秒無回應）；
+      同時間 example.com、sms2.mitake.com.tw 網站都連得到。確認是三竹的 API 主機擋掉 Cloudflare 的連線，不是程式或帳密問題。
   - id: Q15
     question: >
       補習班目前使用哪些 @storykids.com.tw 信箱？（MX 指向舊外包主機，舊主機關閉後會失效）
@@ -284,6 +297,13 @@ open_questions:
       寄信服務帳號（建議 Brevo）與 API 金鑰；DNS 轉到 Cloudflare 後加 SPF／DKIM／DMARC
     owner: 補習班 / 開發者
     phase: phase2
+
+  - id: Q16
+    question: 學期班的「退費辦法」內容（線上報名第二步要給家長勾選同意；目前只有寒暑假營隊的退費辦法）
+    owner: 補習班
+    status: resolved
+    answer: 2026-10-12 補習班提供學期班補課與退費辦法，已建立 policies/makeup-semester、refund-semester，學期班課程皆已選用
+    notes: 補習班提供後，在內容後台「報名辦法」新增一份退費辦法，並在各學期班課程選擇它
 
 # -----------------------------------------------------------------------------
 # 任務
@@ -432,6 +452,8 @@ tasks:
   - id: T33
     title: 上線前清理：清空 D1 測試報名資料、改寫繳費說明頁（Q10）、更新首頁照片（Q11）、處理學生姓名（Q8）、營業時間（Q9）
     status: todo
+    notes: >
+      ⚠️ 只刪測試報名，保留舊站匯入的資料：DELETE 時加 WHERE legacy_term IS NULL（notifications／payment_events／audit_log 也只刪對應的測試報名）
     depends_on: [T17, Q8, Q9, Q10, Q11]
   - id: T34
     title: 開放正式線上報名：台新串接完成後 PAYMENT_MODE=live、SMS_MODE=live；報名尖峰前評估 Workers Paid
@@ -442,6 +464,16 @@ tasks:
     title: 上線後驗證（網站、報名、通知、簡訊），通知外包停用舊系統；確認舊信箱改用 Email Routing 後再停舊主機
     status: todo
     depends_on: [T29, T32, Q1, Q7]
+
+  # ---- 2026-10-12 補習班回饋 ----
+  - id: T36
+    title: 匯入舊站報名資料（scripts/import-legacy.mjs，本機與線上 D1）
+    status: in_progress
+    notes: 本機已匯入 1542 筆；線上 D1 待部署新版程式後匯入（migration 0004 先套用）
+  - id: T37
+    title: 上線前從舊站重新匯出報名資料並再匯入一次（補上最後一段時間的報名）
+    status: todo
+    depends_on: [T36]
 
 # -----------------------------------------------------------------------------
 # 變更紀錄
@@ -513,3 +545,13 @@ changelog:
     note: WHOIS 查得網域註冊商為網路中文（非遠振）、註冊人為魔瓶視覺設計、到期 2028-04-17；需請魔瓶過戶給補習班（Q2）。
   - date: 2026-10-05
     note: 整理待辦：標示已解決的 Q3／Q4／Q6、Q13 部分完成；更新 T8a、T10；新增 T22～T35（開發、上線當天清單、上線後）。
+  - date: 2026-10-12
+    note: >
+      依補習班回饋修改：頁首改回舊站橘色底（Logo 不再像白底上的小貼紙）；圖片欄位加上建議尺寸提示；前台不再顯示名額與剩餘名額（只顯示「額滿請候補」，/api/availability 只回傳是否額滿）；
+      報名改為舊站三步驟（課程預約 → 資料填寫：閱讀補課／退費辦法並勾選同意 → 完成報名：填資料），移除個資同意勾選；
+      報名欄位補齊舊站的性別、聯絡電話（市話）、郵遞區號、地址、飲食習慣（葷／方便素，僅寒暑假班），學校與年級改為必填；
+      新增內容集合「課程類別」（選單「課程介紹」的子選單改為類別，/courses/category/[id]）與「報名辦法」（補課／退費，課程必選）；內容後台課程列表依類別分組；
+      報名管理後台：移除上方時段卡片（人數改顯示在時段下拉選單）、點學生姓名可編輯報名資料與「優待金額」（只做顯示，不影響應繳金額與繳費帳號）、來源／舊站梯次篩選、CSV 增加新欄位；
+      migration 0004（新欄位、優待金額、同意的辦法、舊站匯入欄位）；舊站報名資料 1542 筆匯入本機 D1（old_class/ 已加入 .gitignore）。測試 69 項。
+  - date: 2026-10-12
+    note: 補習班提供學期班補課辦法、退費辦法，更新 makeup-semester、新增 refund-semester，6 個學期班課程皆已選用（Q16 解決）。

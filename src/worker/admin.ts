@@ -1,6 +1,7 @@
 // 報名管理後台 API（/api/admin/*，已通過登入驗證才會進來）
 import type { Env, Registration } from './env';
-import { STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
+import { LEGACY_PREFIX, STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
+import { PROFILE_LABELS, readProfile, validateProfile } from './profile';
 import { countBySession, findSession, loadSessions } from './sessions';
 import { PAID_STATUSES, generateVirtualAccount, reconcile } from './payment';
 import { notifyPromoted, parseAddress, sendTestEmail, sendTestSms } from './notify';
@@ -38,6 +39,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
     const action = m[2] ?? '';
     if (method === 'GET' && action === '/history') return history(env, id);
     if (method === 'PATCH' && action === '') return updateRegistration(request, env, id, actor);
+    if (method === 'PATCH' && action === '/profile') return updateProfile(request, env, id, actor);
     if (method === 'POST' && action === '/mock-payment') return mockPayment(request, env, id, actor);
   }
   return json({ error: '找不到' }, 404);
@@ -48,10 +50,15 @@ async function listSessions(request: Request, env: Env): Promise<Response> {
   const [sessions, counts] = await Promise.all([loadSessions(env, request), countBySession(env)]);
   // CMS 已刪除、但資料庫還有報名的時段也要列出，避免報名「消失」
   const known = new Set(sessions.map((s) => s.code));
-  const orphans = [...counts.keys()].filter((code) => !known.has(code));
+  // 舊站匯入的時段本來就不在 CMS，另外列出（依梯次分組篩選用）
+  const orphans = [...counts.keys()].filter((code) => !known.has(code) && !code.startsWith(LEGACY_PREFIX));
+  const { results: legacyTerms } = await env.DB.prepare(
+    `SELECT legacy_term AS term, COUNT(*) AS n FROM registrations WHERE legacy_term IS NOT NULL GROUP BY legacy_term ORDER BY legacy_term DESC`,
+  ).all<{ term: string; n: number }>();
   return json({
     sessions: sessions.map((s) => ({ ...s, taken: counts.get(s.code)?.taken ?? 0, waitlist: counts.get(s.code)?.waitlist ?? 0 })),
     orphans,
+    legacy_terms: legacyTerms,
   });
 }
 
@@ -62,17 +69,23 @@ async function queryRegistrations(env: Env, params: URLSearchParams): Promise<(R
   const admission = params.get('admission');
   const status = params.get('status');
   const q = params.get('q')?.trim();
+  const term = params.get('term');
   if (session) { where.push('session_code = ?'); binds.push(session); }
+  // 來源：new = 新網站報名；legacy = 舊站匯入（可再指定梯次）
+  if (params.get('source') === 'new') where.push('legacy_term IS NULL');
+  if (params.get('source') === 'legacy') where.push('legacy_term IS NOT NULL');
+  if (term) { where.push('legacy_term = ?'); binds.push(term); }
   if (admission) { where.push('admission = ?'); binds.push(admission); }
   if (status === '逾期未繳') { where.push(`status = '等待付費' AND va_expires_at < ?`); binds.push(nowIso()); }
   else if (status === '需人工確認') { where.push('review_note IS NOT NULL'); }
   else if (status) { where.push('status = ?'); binds.push(status); }
   if (q) {
-    where.push('(student_name LIKE ? OR parent_name LIKE ? OR phone LIKE ? OR email LIKE ? OR va_account LIKE ? OR CAST(id AS TEXT) = ?)');
+    where.push(`(student_name LIKE ? OR parent_name LIKE ? OR phone LIKE ? OR tel LIKE ? OR email LIKE ? OR va_account LIKE ? OR legacy_va LIKE ?
+      OR school LIKE ? OR course_title LIKE ? OR CAST(id AS TEXT) = ?)`);
     const like = `%${q}%`;
-    binds.push(like, like, like, like, like, q);
+    binds.push(like, like, like, like, like, like, like, like, like, q);
   }
-  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY id DESC LIMIT 1000`;
+  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY id DESC LIMIT 3000`;
   const { results } = await env.DB.prepare(sql).bind(...binds).all<Registration>();
   return results.map((r) => ({ ...r, expired: isExpired(r) }));
 }
@@ -90,6 +103,8 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
   // 候補 → 正取（遞補）：產生繳費帳號、重新計算繳費期限、通知家長
   let promoted = false;
   if (body.admission && body.admission !== reg.admission) {
+    // 舊站匯入的資料沒有對應的 CMS 時段，不能遞補（避免產生新繳費帳號、通知家長）
+    if (reg.legacy_term) return json({ error: '舊站匯入的報名不能修改正取／候補' }, 400);
     if (body.admission === '正取') {
       next.admission = '正取';
       next.status = '等待付費';
@@ -133,6 +148,54 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
   return json({ ...next, review_note: null, updated_at: now, expired: isExpired(next) });
 }
 
+// 編輯報名資料（家長填錯電話等）與優待金額
+// 優待金額只做顯示，不改應繳金額（amount），已產生的繳費帳號與對帳金額不受影響
+async function updateProfile(request: Request, env: Env, id: number, actor: string): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return json({ error: '格式錯誤' }, 400);
+  const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
+  if (!reg) return json({ error: '找不到這筆報名' }, 404);
+
+  const profile = readProfile(body);
+  const errors = validateProfile(profile, 'admin');
+  let discount: number | null = null;
+  if (body.discount_amount !== undefined && body.discount_amount !== null && body.discount_amount !== '') {
+    discount = Number(body.discount_amount);
+    if (!Number.isInteger(discount) || discount < 0 || discount > 1_000_000) errors.push('優待金額請填 0 以上的整數');
+  }
+  if (errors.length) return json({ error: errors.join('、') }, 400);
+
+  // 只記錄有變動的欄位
+  const changes: string[] = [];
+  const next: Record<string, string | number | null> = {};
+  for (const key of Object.keys(PROFILE_LABELS) as (keyof typeof PROFILE_LABELS)[]) {
+    const value = profile[key] || null;
+    const before = (reg[key] as string | null) || null;
+    if (value === before) continue;
+    if (key === 'student_name' || key === 'parent_name' || key === 'phone' || key === 'email') next[key] = value ?? '';
+    else next[key] = value;
+    changes.push(`${PROFILE_LABELS[key]}：${before ?? '（空白）'} → ${value ?? '（空白）'}`);
+  }
+  if (discount !== reg.discount_amount) {
+    next.discount_amount = discount;
+    changes.push(`優待金額：${reg.discount_amount ?? '（空白）'} → ${discount ?? '（空白）'}`);
+  }
+  if (!changes.length) return json({ ...reg, expired: isExpired(reg) });
+
+  const now = nowIso();
+  const cols = Object.keys(next);
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE registrations SET ${cols.map((c) => `${c} = ?`).join(', ')}, updated_at = ? WHERE id = ?`).bind(
+      ...cols.map((c) => next[c]), now, id,
+    ),
+    env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, ?, '編輯資料', ?, ?)`).bind(
+      id, actor, changes.join('；'), now,
+    ),
+  ]);
+  const updated = { ...reg, ...next, updated_at: now } as Registration;
+  return json({ ...updated, expired: isExpired(updated) });
+}
+
 // 模擬入帳（只在測試模式可用）：走跟台新入帳通知完全相同的對帳流程
 async function mockPayment(request: Request, env: Env, id: number, actor: string): Promise<Response> {
   if (env.PAYMENT_MODE !== 'mock') return json({ error: '正式模式不能模擬入帳' }, 403);
@@ -166,7 +229,8 @@ async function exportCsv(env: Env, params: URLSearchParams, actor: string): Prom
   const rows = await queryRegistrations(env, params);
   const filters = [...params.entries()].map(([k, v]) => `${k}=${v}`).join('、') || '全部';
   await audit(env, null, actor, '匯出名單', `條件：${filters}；共 ${rows.length} 筆`);
-  const header = ['報名編號', '報名時間', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '家長姓名', '學校', '年級', '手機', 'Email', '備註', '應繳金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '需人工確認'];
+  const header = ['報名編號', '報名時間', '來源', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '性別', '家長姓名', '學校', '年級',
+    '行動電話', '聯絡電話', 'Email', '郵遞區號', '地址', '飲食習慣', '備註', '應繳金額', '優待金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '同意辦法', '需人工確認'];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
     // 避免 Excel 公式注入：開頭為 = + - @ 的欄位前加單引號
@@ -175,10 +239,12 @@ async function exportCsv(env: Env, params: URLSearchParams, actor: string): Prom
   };
   const lines = rows.map((r) =>
     [
-      r.id, formatTw(r.created_at), r.course_title, r.session_name, r.session_code, r.admission,
+      r.id, r.legacy_term ? '' : formatTw(r.created_at), r.legacy_term ? `舊站 ${r.legacy_term} #${r.legacy_id}` : '新網站',
+      r.course_title, r.session_name, r.legacy_term ? '' : r.session_code, r.admission,
       r.expired ? '等待付費（已逾期）' : r.status,
-      r.student_name, r.parent_name, r.school, r.grade, `\t${r.phone}`, r.email, r.note, r.amount,
-      r.va_account ? `\t${r.va_account}` : '', formatTw(r.va_expires_at), r.paid_amount, formatTw(r.paid_at), r.review_note,
+      r.student_name, r.gender, r.parent_name, r.school, r.grade, `\t${r.phone}`, r.tel ? `\t${r.tel}` : '', r.email, r.zip, r.address, r.diet, r.note,
+      r.legacy_term ? '' : r.amount, r.discount_amount,
+      r.va_account || r.legacy_va ? `\t${r.va_account ?? r.legacy_va}` : '', formatTw(r.va_expires_at), r.paid_amount, formatTw(r.paid_at), r.agreed_policies, r.review_note,
     ].map(esc).join(','),
   );
   const csv = `﻿${[header.join(','), ...lines].join('\r\n')}`;

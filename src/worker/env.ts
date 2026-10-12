@@ -71,6 +71,11 @@ export interface Session {
   cycle?: string; // 上課週期，例如「五天主題課程30小時」
   fee_note?: string; // 費用說明（退費規定等）
   location?: string; // 上課地點（時段有填寫則用時段的）
+  // 報名須知：補課辦法、退費辦法（「報名辦法」集合的 id 與名稱）
+  makeup_rule?: string;
+  makeup_rule_title?: string;
+  refund_rule?: string;
+  refund_rule_title?: string;
 }
 
 export interface Registration {
@@ -83,9 +88,19 @@ export interface Registration {
   parent_name: string;
   school: string | null;
   grade: string | null;
-  phone: string;
+  phone: string; // 行動電話
   email: string;
   note: string | null;
+  gender: string | null;
+  tel: string | null; // 聯絡電話（市話）
+  zip: string | null;
+  address: string | null;
+  diet: string | null; // 飲食習慣
+  discount_amount: number | null; // 優待金額（只做顯示，不影響 amount）
+  agreed_policies: string | null;
+  legacy_id: number | null; // 舊站匯入：舊站編號
+  legacy_term: string | null; // 舊站匯入：梯次
+  legacy_va: string | null; // 舊站匯入：舊站虛擬帳號
   admission: '正取' | '候補';
   status: string;
   amount: number;
@@ -108,6 +123,13 @@ export const isLocalRequest = (request: Request) => ['localhost', '127.0.0.1'].i
 export const STATUSES = ['待處理', '等待付費', '已付訂金', '已付費', '合庫轉帳', '現金繳清', '轉至其他梯次', '取消報名'] as const;
 // 不佔名額的狀態
 export const RELEASED_STATUSES = ['取消報名', '轉至其他梯次'];
+
+// 報名表選項（沿用舊站）
+export const GRADES = ['幼兒園大班', '國小一年級', '國小二年級', '國小三年級', '國小四年級', '國小五年級', '國小六年級', '國中一年級', '國中二年級', '國中三年級'];
+export const GENDERS = ['男', '女'];
+export const DIETS = ['葷', '方便素'];
+// 舊站匯入的時段代號前綴（這些時段不在 CMS 裡，後台不當成「已刪除的時段」警告）
+export const LEGACY_PREFIX = 'old-';
 
 export const nowIso = () => new Date().toISOString();
 

@@ -7,7 +7,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import SessionList from '../../components/SessionList.astro';
-import { getCourses } from '../../lib/content';
+import { getCourseGroups, getCourses } from '../../lib/content';
 import { courseRegistrationHref, isExternal, excerpt, youtubeId, site, telHref } from '../../lib/site';
 
 export const getStaticPaths = (async () => {
@@ -21,6 +21,8 @@ const { Content } = await render(course);
 const hasBody = !!course.body?.trim();
 const regHref = courseRegistrationHref(course);
 const videoId = youtubeId(d.video);
+const group = (await getCourseGroups()).find((g) => g.courses.some((c) => c.id === course.id));
+const crumbs = [{ label: '課程介紹', href: '/courses' }, ...(group?.id ? [{ label: group.title, href: `/courses/category/${group.id}` }] : [])];
 const photos = d.images.length ? d.images : d.cover ? [d.cover] : [];
 
 type Row = { label: string; value?: string };
@@ -68,7 +70,7 @@ const facts = rows([
 ---
 
 <BaseLayout title={d.title} description={d.summary || d.goal || excerpt(course.body, 120)} image={d.cover}>
-  <PageHeader title={d.title} subtitle={d.summary} crumbs={[{ label: '課程介紹', href: '/courses' }]} />
+  <PageHeader title={d.title} subtitle={d.summary} crumbs={crumbs} />
   <div class="container-page grid gap-10 py-12 lg:grid-cols-[1fr_300px]">
     <article class="min-w-0 space-y-10">
       <!-- 課程照片 -->
@@ -189,7 +191,7 @@ const facts = rows([
     </article>
 
     <!-- 側欄：課程摘要 + 報名 -->
-    <aside class="lg:sticky lg:top-24 lg:self-start">
+    <aside class="lg:sticky lg:top-28 lg:self-start">
       <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <dl class="space-y-4">
           {

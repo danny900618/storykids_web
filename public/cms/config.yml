@@ -2,6 +2,7 @@
 # 補習班人員在後台看到的欄位都定義在這裡。
 # 修改欄位時，請同步更新 src/content.config.ts（欄位名稱必須一致）。
 # 注意：Sveltia 的欄位預設為「必填」，選填欄位要加 required: false。
+# 圖片欄位的 hint 寫的是建議尺寸：網站會依固定比例裁切顯示，照建議比例上傳就不會被切到重要部分。
 
 backend:
   name: github
@@ -48,8 +49,8 @@ collections:
       - { name: date, label: 日期, widget: datetime, type: date, format: YYYY-MM-DD, default: "{{now}}" }
       - { name: featured, label: 顯示在首頁（會出現在首頁最上方的輪播）, widget: boolean, default: false, required: false }
       - { name: published, label: 啟用（取消勾選可當草稿，不會出現在網站上）, widget: boolean, default: true, required: false }
-      - { name: cover, label: 封面圖片, widget: image, required: false }
-      - { name: slide_image, label: 首頁輪播圖片（建議橫幅 1500×730；未上傳則使用封面圖片）, widget: image, required: false }
+      - { name: cover, label: 封面圖片, widget: image, required: false, hint: "建議橫式 16:9，例如 1200×675。列表卡片會裁成 16:9；消息內頁顯示完整圖片。" }
+      - { name: slide_image, label: 首頁輪播圖片（未上傳則使用封面圖片）, widget: image, required: false, hint: "建議橫幅 2:1，例如 1600×800。左右上下邊緣可能被裁切，文字與人物請放在中間；圖片下方會疊上消息標題。" }
       - { name: summary, label: 摘要（列表卡片上顯示；未填寫會自動擷取內文開頭）, widget: text, required: false }
       - { name: body, label: 內文, widget: richtext, required: false }
 
@@ -68,15 +69,28 @@ collections:
       default:
         field: order
         direction: ascending
+    # 課程列表預設依「課程類別」分組：先找到類別，再點進要編輯的課程
+    view_groups:
+      groups:
+        - { name: category, label: 課程類別, field: category }
+      default: category
     # 欄位沿用舊站課程頁：每個資訊獨立填寫，課程頁以固定模板顯示（空白的欄位不會顯示）
     fields:
       # ---- 基本資料 ----
       - { name: title, label: 課程名稱, widget: string }
-      - { name: category, label: 課程類別（例如：學期班（11509學期）、115夏令營）, widget: string, default: 學期班, required: false }
+      # 存的是類別名稱。類別改名後，屬於該類別的課程要重新選一次類別
+      - name: category
+        label: 課程類別
+        widget: relation
+        collection: categories
+        value_field: title
+        search_fields: [title]
+        display_fields: [title]
+        hint: 類別在左側「課程類別」新增與排序；類別改名後，請把該類別的課程重新選一次類別
       - { name: audience, label: 適合對象（課程卡片上的短標籤，例如：小一~小二）, widget: string, required: false }
       - { name: summary, label: 課程簡介（課程卡片上顯示）, widget: text, required: false }
-      - { name: cover, label: 課程卡片圖片, widget: image, required: false }
-      - { name: images, label: 課程照片（課程頁最上方，可一次選多張）, widget: image, multiple: true, required: false }
+      - { name: cover, label: 課程卡片圖片, widget: image, required: false, hint: "建議 4:3，例如 1200×900。課程卡片會裁成 4:3。" }
+      - { name: images, label: 課程照片（課程頁最上方，可一次選多張）, widget: image, multiple: true, required: false, hint: "建議 4:3，例如 1200×900。會裁成 4:3 排列。" }
       # ---- 課程說明 ----
       - { name: skills, label: 培養能力, widget: text, required: false }
       - { name: goal, label: 課程目標, widget: text, required: false }
@@ -88,7 +102,24 @@ collections:
       - { name: cycle, label: 上課週期（例如：每期16週課程、五天主題課程30小時）, widget: string, required: false }
       - { name: class_time, label: 上課時間（例如：每週上課一次，每堂課100分鐘）, widget: text, required: false }
       - { name: class_size, label: 上課人數（例如：每班最多12人）, widget: string, required: false }
-      - { name: makeup_policy, label: 補課辦法, widget: text, required: false }
+      - { name: makeup_policy, label: 補課辦法（課程頁顯示的簡短說明）, widget: text, required: false }
+      # ---- 報名須知：線上報名第二步顯示，家長勾選同意後才能填寫資料 ----
+      - name: makeup_rule
+        label: 報名須知：補課辦法
+        widget: relation
+        collection: policies
+        search_fields: [title]
+        display_fields: [title]
+        filters: [{ field: kind, values: [補課辦法] }]
+        hint: 家長線上報名時會看到並勾選同意。內容在左側「報名辦法」新增與修改
+      - name: refund_rule
+        label: 報名須知：退費辦法
+        widget: relation
+        collection: policies
+        search_fields: [title]
+        display_fields: [title]
+        filters: [{ field: kind, values: [退費辦法] }]
+        hint: 家長線上報名時會看到並勾選同意。內容在左側「報名辦法」新增與修改
       # ---- 課程學費 ----
       - { name: price, label: 預約費用（顯示用文字，例如：NT$ 11,000 / 期）, widget: string, required: false }
       - { name: fee_note, label: 費用說明（例如：費用包含教材、退費規定；也會出現在報名通知信）, widget: text, required: false }
@@ -130,6 +161,51 @@ collections:
       - { name: registration_url, label: 外部報名連結（沒有設定上課時段時才會使用）, widget: string, required: false }
       - { name: body, label: 其他補充說明（選填，顯示在課程頁最下方）, widget: richtext, required: false }
 
+  # ---------------------------------------------------------------- 課程類別
+  - name: categories
+    label: 課程類別
+    label_singular: 類別
+    folder: src/content/categories
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "category-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{order}}｜{{title}}"
+    sortable_fields:
+      fields: [order, title]
+      default:
+        field: order
+        direction: ascending
+    fields:
+      - { name: title, label: 類別名稱（例如：學期班（11509學期）、115夏令營）, widget: string, hint: 會顯示在選單「課程介紹」的下拉選單。改名後，屬於這個類別的課程要重新選一次類別 }
+      - { name: description, label: 簡短說明（選填，顯示在類別頁上方）, widget: text, required: false }
+      - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
+      - { name: published, label: 啟用（取消勾選後，這個類別與其中的課程都不會出現在選單與課程介紹）, widget: boolean, default: true, required: false }
+
+  # ---------------------------------------------------------------- 報名辦法（補課／退費）
+  - name: policies
+    label: 報名辦法（補課／退費）
+    label_singular: 辦法
+    folder: src/content/policies
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "policy-{{year}}{{month}}{{day}}-{{hour}}{{minute}}{{second}}"
+    summary: "{{title}}"
+    view_groups:
+      groups:
+        - { name: kind, label: 種類, field: kind }
+      default: kind
+    fields:
+      - name: kind
+        label: 種類
+        widget: select
+        options:
+          - { label: 補課辦法, value: 補課辦法 }
+          - { label: 退費辦法, value: 退費辦法 }
+      - { name: title, label: 名稱（在課程裡選擇時看到的名字，例如：寒暑假營隊、學期班）, widget: string }
+      - { name: body, label: 內容（家長報名時會看到並勾選同意）, widget: richtext }
+
   # ---------------------------------------------------------------- 關於講堂 / 上課須知
   - name: pages
     label: 關於講堂、上課須知
@@ -156,7 +232,7 @@ collections:
           - { label: 上課須知, value: info }
       - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
       - { name: description, label: 簡介（選填，顯示在目錄卡片與首頁）, widget: text, required: false }
-      - { name: cover, label: 首頁圖片（選填，只有排序第一的「關於講堂」頁面會顯示在首頁）, widget: image, required: false }
+      - { name: cover, label: 首頁圖片（選填，只有排序第一的「關於講堂」頁面會顯示在首頁）, widget: image, required: false, hint: "建議 4:3，例如 1200×900。" }
       - { name: published, label: 啟用, widget: boolean, default: true, required: false }
       - { name: body, label: 內文, widget: richtext, required: false }
 
@@ -180,7 +256,7 @@ collections:
       - { name: role, label: 職稱（例如：班主任、指導老師）, widget: string, required: false }
       - { name: category, label: 分類標籤（顯示在卡片上方，例如：課程總監、口語表達）, widget: string, required: false }
       - { name: major, label: 學歷（例如：中興大學 教育研究所）, widget: string, required: false }
-      - { name: photo, label: 照片（選填）, widget: image, required: false }
+      - { name: photo, label: 照片（選填）, widget: image, required: false, hint: "建議正方形，例如 600×600，臉在正中間（會裁成圓形）。" }
       - { name: order, label: 排序（數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
       - { name: published, label: 啟用, widget: boolean, default: true, required: false }
       - { name: body, label: 老師簡介, widget: richtext, required: false }
@@ -205,8 +281,8 @@ collections:
       - { name: subtitle, label: 副標題（例如：閩南語演說、一對一課程）, widget: string, required: false }
       - { name: summary, label: 簡短描述（列表上顯示；未填寫會自動擷取說明文字開頭）, widget: text, required: false }
       - { name: date, label: 日期（有日期的會排在最前面，新到舊）, widget: datetime, type: date, format: YYYY-MM-DD, required: false }
-      - { name: cover, label: 封面圖片, widget: image, required: false }
-      - { name: images, label: 相簿照片（可一次選多張）, widget: image, multiple: true, required: false }
+      - { name: cover, label: 封面圖片, widget: image, required: false, hint: "建議 4:3，例如 1200×900。列表會裁成 4:3；相簿內頁顯示完整圖片。" }
+      - { name: images, label: 相簿照片（可一次選多張）, widget: image, multiple: true, required: false, hint: 相簿內頁顯示完整圖片，不會裁切，直式橫式都可以 }
       - { name: youtube, label: YouTube 影片網址（選填；只填影片、不放照片時，會顯示在頁面最上方）, widget: string, required: false }
       - { name: published, label: 啟用, widget: boolean, default: true, required: false }
       - { name: order, label: 排序（沒有日期的項目才會用到，數字越小越前面）, widget: number, value_type: int, default: 100, required: false }
@@ -225,8 +301,8 @@ collections:
           - { name: full_name, label: 立案全名, widget: string, required: false }
           - { name: slogan, label: 標語（首頁大標）, widget: string, required: false }
           - { name: description, label: 網站介紹（首頁與 Google 搜尋結果顯示）, widget: text, required: false }
-          - { name: logo, label: Logo, widget: image, required: false }
-          - { name: hero_image, label: 首頁主視覺圖片（沒有輪播消息時才會顯示；建議橫式、寬 1600px 以上）, widget: image, required: false }
+          - { name: logo, label: Logo, widget: image, required: false, hint: "透明背景 PNG，高度約 130px 以上。會放在橘色頁首上。" }
+          - { name: hero_image, label: 首頁主視覺圖片（沒有輪播消息時才會顯示）, widget: image, required: false, hint: "建議橫幅 2:1，例如 1600×800。" }
           - { name: phone, label: 電話, widget: string, required: false }
           - { name: fax, label: 傳真, widget: string, required: false }
           - { name: address, label: 地址, widget: string, required: false }

@@ -18,3 +18,6 @@ docs/old-cms/
 # Cloudflare Workers 本機開發（.dev.vars 放本機用的密碼與設定，不可進版控）
 .dev.vars
 .wrangler/
+
+# 舊站報名資料（含個資），只匯入 D1，絕不 commit
+old_class/

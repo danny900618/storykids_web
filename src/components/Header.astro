@@ -1,6 +1,7 @@
 ---
 // 頁首導覽列：桌機版右上角固定「線上報名」，手機版改用漢堡選單 + 底部報名列
-// 「關於講堂」「課程介紹」「上課須知」有下拉子選單，內容由後台資料自動產生
+// 「關於講堂」「課程介紹」「上課須知」有下拉子選單，內容由後台資料自動產生；點選單名稱本身會進入總覽頁
+// 底色沿用舊站的橘色（上緣深紅線），Logo 的橘色底與頁首融為一體
 import Icon from './Icon.astro';
 import { site, registrationHref, isExternal } from '../lib/site';
 import { getNav } from '../lib/nav';
@@ -11,16 +12,16 @@ const isActive = (href: string) => current === href || current.startsWith(`${hre
 const regHref = registrationHref();
 ---
 
-<header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur">
-  <div class="container-page flex h-16 items-center justify-between gap-4">
+<header class="sticky top-0 z-40 border-t-4 border-brand-700 bg-brand-500 shadow-md">
+  <div class="container-page flex h-20 items-center justify-between gap-4">
     <!-- 品牌 Logo：網站設定有上傳 Logo 就顯示圖片，否則顯示文字 -->
     <a href="/" class="flex items-center gap-2 font-bold text-ink-900">
       {
         site.logo ? (
-          <img src={site.logo} alt={site.name} class="h-11 w-auto rounded-md" />
+          <img src={site.logo} alt={site.name} class="h-16 w-auto" width="254" height="129" />
         ) : (
           <>
-            <span class="grid size-10 place-items-center rounded-full bg-brand-500 text-lg text-brand-700">故</span>
+            <span class="grid size-10 place-items-center rounded-full bg-white text-lg text-brand-700">故</span>
             <span class="text-lg sm:text-xl">{site.name}</span>
           </>
         )
@@ -36,8 +37,8 @@ const regHref = registrationHref();
               <a
                 href={item.href}
                 class:list={[
-                  'inline-flex items-center gap-1 rounded-full px-3 py-2 font-medium transition hover:bg-brand-50 hover:text-brand-700',
-                  isActive(item.href) ? 'text-brand-700' : 'text-ink-700',
+                  'inline-flex items-center gap-1 rounded-full px-3 py-2 font-bold text-brand-700 transition hover:bg-white/60',
+                  isActive(item.href) && 'bg-white/60',
                 ]}
                 aria-current={current === item.href ? 'page' : undefined}
                 aria-haspopup={item.children ? 'true' : undefined}
@@ -78,7 +79,7 @@ const regHref = registrationHref();
     <!-- 手機版選單按鈕 -->
     <button
       type="button"
-      class="grid size-10 place-items-center rounded-full text-ink-700 hover:bg-brand-50 lg:hidden"
+      class="grid size-10 place-items-center rounded-full text-brand-700 hover:bg-white/60 lg:hidden"
       aria-controls="mobile-menu"
       aria-expanded="false"
       aria-label="開啟選單"
@@ -89,43 +90,45 @@ const regHref = registrationHref();
   </div>
 
   <!-- 手機版展開選單：有子選單的項目用摺疊（details）呈現 -->
-  <nav id="mobile-menu" class="hidden max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-black/5 bg-white lg:hidden" aria-label="手機選單">
+  <nav id="mobile-menu" class="hidden max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-black/5 bg-white lg:hidden" aria-label="手機選單">
     <ul class="container-page py-2">
       {
         nav.map((item) =>
           item.children ? (
             <li>
-              <details class="group" open={isActive(item.href)}>
-                <summary
-                  class:list={[
-                    'flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-3 font-medium',
-                    isActive(item.href) ? 'text-brand-700' : 'text-ink-700',
-                  ]}
+              <!-- 名稱本身可點進總覽頁，右側箭頭展開子選單 -->
+              <div class="flex items-center">
+                <a
+                  href={item.href}
+                  class:list={['flex-1 rounded-lg px-3 py-3 font-medium', isActive(item.href) ? 'text-brand-700' : 'text-ink-700']}
                 >
                   {item.label}
-                  <Icon name="chevron" class="size-4 transition group-open:rotate-180" />
-                </summary>
-                <ul class="mb-2 ml-3 border-l-2 border-brand-100 pl-3">
+                </a>
+                <button
+                  type="button"
+                  class="grid size-11 place-items-center rounded-lg text-ink-500 hover:bg-brand-50"
+                  aria-expanded={isActive(item.href) ? 'true' : 'false'}
+                  aria-label={`展開${item.label}子選單`}
+                  data-submenu-toggle
+                >
+                  <Icon name="chevron" class="size-4 transition [[aria-expanded=true]>&]:rotate-180" />
+                </button>
+              </div>
+              <ul class:list={['mb-2 ml-3 border-l-2 border-brand-100 pl-3', !isActive(item.href) && 'hidden']}>
+                {item.children.map((child) => (
                   <li>
-                    <a href={item.href} class="block rounded-lg px-3 py-2.5 text-ink-500">
-                      {item.label}總覽
+                    <a
+                      href={child.href}
+                      class:list={[
+                        'block rounded-lg px-3 py-2.5',
+                        current === child.href ? 'bg-brand-50 font-bold text-brand-700' : 'text-ink-700',
+                      ]}
+                    >
+                      {child.label}
                     </a>
                   </li>
-                  {item.children.map((child) => (
-                    <li>
-                      <a
-                        href={child.href}
-                        class:list={[
-                          'block rounded-lg px-3 py-2.5',
-                          current === child.href ? 'bg-brand-50 font-bold text-brand-700' : 'text-ink-700',
-                        ]}
-                      >
-                        {child.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </details>
+                ))}
+              </ul>
             </li>
           ) : (
             <li>
@@ -156,4 +159,12 @@ const regHref = registrationHref();
     toggle.setAttribute('aria-label', open ? '開啟選單' : '關閉選單');
     menu?.classList.toggle('hidden', open);
   });
+  // 手機選單的子選單展開／收合
+  document.querySelectorAll<HTMLButtonElement>('[data-submenu-toggle]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!open));
+      btn.closest('li')?.querySelector('ul')?.classList.toggle('hidden', open);
+    }),
+  );
 </script>

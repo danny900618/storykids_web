@@ -17,6 +17,8 @@ cycle: 每期16週課程
 class_time: 每週上課一次，每堂課100分鐘。
 class_size: 每班最多12人
 makeup_policy: 考量學習成效，每學期提供二次補課：1.可至相同主題與進度課程時段補課。 2.與老師另約30分鐘補課(原上課時段，提前或延後30分鐘)。
+makeup_rule: makeup-semester
+refund_rule: refund-semester
 price: NT$ 11,000 / 期
 fee_note: 650元*16堂課=10400元。另收教材費600元(含講義和音檔連結)。每期學費為10400+600=11000元。
 schedule_file: /files/11509-schedule.pdf

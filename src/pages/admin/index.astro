@@ -29,16 +29,20 @@ import '../../styles/global.css';
     </header>
 
     <main class="mx-auto max-w-[1400px] space-y-6 px-4 py-6">
-      <!-- 各時段概況 -->
-      <section>
-        <h2 class="font-bold">各時段報名概況</h2>
-        <div id="sessions" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div>
-        <p id="orphans" class="mt-3 hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p>
-      </section>
+      <!-- CMS 已刪除但仍有報名的時段 -->
+      <p id="orphans" class="hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p>
 
       <!-- 篩選 -->
       <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
         <form id="filters" class="flex flex-wrap items-end gap-3">
+          <label class="text-sm">來源
+            <select name="source" class="mt-1 block rounded-lg border border-black/15 px-3 py-2">
+              <option value="">全部</option><option value="new">新網站報名</option><option value="legacy">舊站匯入</option>
+            </select>
+          </label>
+          <label class="text-sm">舊站梯次
+            <select name="term" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部梯次</option></select>
+          </label>
           <label class="text-sm">時段
             <select name="session" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部時段</option></select>
           </label>
@@ -51,7 +55,7 @@ import '../../styles/global.css';
             <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>需人工確認</option><option>逾期未繳</option></select>
           </label>
           <label class="text-sm">搜尋
-            <input name="q" placeholder="姓名、手機、Email、帳號、編號" class="mt-1 block w-64 rounded-lg border border-black/15 px-3 py-2" />
+            <input name="q" placeholder="姓名、電話、Email、學校、課程、帳號、編號" class="mt-1 block w-64 rounded-lg border border-black/15 px-3 py-2" />
           </label>
           <button class="rounded-lg bg-brand-600 px-4 py-2 font-bold text-white hover:bg-brand-700">查詢</button>
           <button type="button" id="export" class="rounded-lg border border-brand-600 px-4 py-2 font-bold text-brand-700 hover:bg-brand-50">匯出 Excel（CSV）</button>
@@ -94,6 +98,31 @@ import '../../styles/global.css';
       </section>
     </main>
 
+    <!-- 報名資料：點學生姓名開啟，可修改家長填錯的資料與優待金額 -->
+    <dialog id="profile" class="m-auto w-[min(760px,95vw)] rounded-2xl p-0 backdrop:bg-black/40">
+      <form id="profile-form" class="flex max-h-[90vh] flex-col">
+        <div class="flex items-center justify-between border-b border-black/5 px-5 py-3">
+          <h3 class="font-bold" id="profile-title"></h3>
+          <button type="button" class="rounded-lg px-3 py-1 hover:bg-slate-100" data-close-profile>關閉</button>
+        </div>
+        <div class="space-y-5 overflow-y-auto p-5 text-sm">
+          <dl id="profile-info" class="grid gap-x-6 gap-y-2 rounded-xl bg-slate-50 p-4 sm:grid-cols-2"></dl>
+          <div id="profile-fields" class="grid gap-4 sm:grid-cols-2"></div>
+          <div class="rounded-xl bg-yellow-50 p-4">
+            <label class="block font-bold">優待金額（元）
+              <input name="discount_amount" type="number" min="0" step="1" class="mt-1 block w-48 rounded-lg border border-black/15 bg-white px-3 py-2" />
+            </label>
+            <p class="mt-1 text-xs text-ink-500">只做紀錄與顯示（例如與家長私下談好的優惠），不會改變應繳金額與繳費帳號。</p>
+          </div>
+          <p id="profile-error" class="hidden rounded-lg bg-red-50 p-3 text-red-700"></p>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-black/5 px-5 py-3">
+          <button type="button" class="rounded-lg border border-black/15 px-4 py-2 hover:bg-slate-100" data-close-profile>取消</button>
+          <button class="rounded-lg bg-brand-600 px-4 py-2 font-bold text-white hover:bg-brand-700">儲存</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- 單筆紀錄（通知、入帳、操作） -->
     <dialog id="history" class="m-auto w-[min(800px,95vw)] rounded-2xl p-0 backdrop:bg-black/40">
       <div class="flex items-center justify-between border-b border-black/5 px-5 py-3">
@@ -107,6 +136,8 @@ import '../../styles/global.css';
       interface Reg {
         id: number; session_code: string; course_title: string; session_name: string; student_name: string; parent_name: string;
         school: string | null; grade: string | null; phone: string; email: string; note: string | null; admission: string; status: string;
+        gender: string | null; tel: string | null; zip: string | null; address: string | null; diet: string | null; discount_amount: number | null;
+        agreed_policies: string | null; legacy_id: number | null; legacy_term: string | null; legacy_va: string | null;
         amount: number; va_account: string | null; va_expires_at: string | null; paid_amount: number | null; paid_at: string | null;
         review_note: string | null; created_at: string; expired: boolean;
       }
@@ -131,24 +162,16 @@ import '../../styles/global.css';
       const query = () => new URLSearchParams(Object.entries(Object.fromEntries(new FormData(filters))).filter(([, v]) => v) as [string, string][]);
 
       async function loadSessions() {
-        const { sessions, orphans } = await api<{ sessions: SessionInfo[]; orphans: string[] }>('/sessions');
-        $('sessions').innerHTML = sessions.length
-          ? sessions
-              .map(
-                (s) => `<button type="button" data-filter-session="${esc(s.code)}" class="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-black/5 hover:ring-brand-500">
-                  <p class="text-xs text-ink-500">${esc(s.course_title)}</p>
-                  <p class="font-bold">${esc(s.name)} ${s.open ? '' : '<span class="text-xs text-ink-500">（暫停報名）</span>'}</p>
-                  <p class="mt-2 text-sm">正取 <b class="${s.taken >= s.capacity ? 'text-brand-600' : 'text-green-700'}">${s.taken} / ${s.capacity}</b>
-                  ・候補 <b>${s.waitlist}</b>・剩餘 <b>${Math.max(0, s.capacity - s.taken)}</b></p>
-                  <p class="mt-1 text-xs text-ink-500">代號 ${esc(s.code)}・${money(s.price)}</p></button>`,
-              )
-              .join('')
-          : '<p class="text-sm text-ink-500">尚未設定任何上課時段，請到「內容管理」的課程裡新增「上課時段」。</p>';
+        const { sessions, orphans, legacy_terms } = await api<{ sessions: SessionInfo[]; orphans: string[]; legacy_terms: { term: string; n: number }[] }>('/sessions');
         const sel = filters.elements.namedItem('session') as HTMLSelectElement;
         const current = sel.value;
-        sel.innerHTML = '<option value="">全部時段</option>' + [...sessions.map((s) => [s.code, `${s.course_title}｜${s.name}`]), ...orphans.map((o) => [o, `${o}（CMS 已刪除）`])]
+        sel.innerHTML = '<option value="">全部時段</option>' + [...sessions.map((s) => [s.code, `${s.course_title}｜${s.name}（正取 ${s.taken}/${s.capacity}${s.waitlist ? `・候補 ${s.waitlist}` : ''}${s.open ? '' : '・暫停報名'}）`]), ...orphans.map((o) => [o, `${o}（CMS 已刪除）`])]
           .map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
         sel.value = current;
+        const termSel = filters.elements.namedItem('term') as HTMLSelectElement;
+        const currentTerm = termSel.value;
+        termSel.innerHTML = '<option value="">全部梯次</option>' + legacy_terms.map((t) => `<option value="${esc(t.term)}">${esc(t.term)}（${t.n}）</option>`).join('');
+        termSel.value = currentTerm;
         $('orphans').classList.toggle('hidden', !orphans.length);
         $('orphans').textContent = orphans.length ? `⚠️ 以下時段已從 CMS 刪除或改了代號，但仍有報名資料：${orphans.join('、')}。請到 CMS 恢復該時段。` : '';
       }
@@ -156,25 +179,29 @@ import '../../styles/global.css';
       function row(r: Reg): string {
         const statusOptions = config.statuses.map((s) => `<option ${s === r.status ? 'selected' : ''}>${esc(s)}</option>`).join('');
         const paid = ['已付費', '合庫轉帳', '現金繳清'].includes(r.status);
-        const vaInfo = r.va_account
+        const legacy = !!r.legacy_term;
+        const vaInfo = legacy
+          ? `<div class="font-mono">${esc(r.legacy_va)}</div><div class="text-xs text-ink-500">舊站帳號</div>`
+          : r.va_account
           ? `<div class="font-mono">${esc(r.va_account)}</div><div class="text-xs ${r.expired ? 'font-bold text-red-600' : 'text-ink-500'}">${r.expired ? '已逾期 ' : '期限 '}${tw(r.va_expires_at)}</div>`
           : '<div class="text-xs text-ink-500">候補不產生帳號</div>';
+        const discount = r.discount_amount ? `<div class="text-xs font-bold text-yellow-700">優待 ${money(r.discount_amount)}</div>` : '';
         const mockBtn = config.payment_mode === 'mock' && r.va_account && !paid
           ? `<button data-mock="${r.id}" class="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-700">模擬入帳</button>` : '';
         const review = r.review_note
           ? `<div class="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">⚠️ 需人工確認：${esc(r.review_note)}</div>` : '';
         return `<tr class="align-top ${r.status === '取消報名' ? 'opacity-50' : ''} ${r.review_note ? 'bg-red-50/40' : ''}">
           <td class="px-3 py-3 font-bold">${r.id}</td>
-          <td class="px-3 py-3 whitespace-nowrap">${tw(r.created_at)}</td>
+          <td class="px-3 py-3 whitespace-nowrap">${legacy ? `<span class="rounded bg-slate-200 px-1.5 py-0.5 text-xs">舊站 ${esc(r.legacy_term)}</span>` : tw(r.created_at)}</td>
           <td class="px-3 py-3"><div class="text-xs text-ink-500">${esc(r.course_title)}</div>${esc(r.session_name)}</td>
-          <td class="px-3 py-3"><div class="font-bold">${esc(r.student_name)}</div><div class="text-ink-500">${esc(r.parent_name)}</div></td>
+          <td class="px-3 py-3"><button type="button" data-profile="${r.id}" class="font-bold text-brand-700 underline decoration-dotted hover:decoration-solid">${esc(r.student_name)}</button>${r.gender ? `<span class="ml-1 text-xs text-ink-500">${esc(r.gender)}</span>` : ''}<div class="text-ink-500">${esc(r.parent_name)}</div></td>
           <td class="px-3 py-3">${esc(r.school)}<div class="text-ink-500">${esc(r.grade)}</div></td>
-          <td class="px-3 py-3"><div>${esc(r.phone)}</div><div class="text-ink-500">${esc(r.email)}</div>${r.note ? `<div class="mt-1 text-xs text-ink-500">備註：${esc(r.note)}</div>` : ''}</td>
-          <td class="px-3 py-3"><select data-admission="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
+          <td class="px-3 py-3"><div>${esc(r.phone)}</div>${r.tel ? `<div class="text-ink-500">${esc(r.tel)}</div>` : ''}<div class="text-ink-500">${esc(r.email)}</div>${r.note ? `<div class="mt-1 text-xs text-ink-500">備註：${esc(r.note)}</div>` : ''}</td>
+          <td class="px-3 py-3"><select data-admission="${r.id}" ${legacy ? 'disabled title="舊站資料不能修改"' : ''} class="rounded-lg border border-black/15 px-2 py-1 disabled:opacity-60 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
             <option ${r.admission === '正取' ? 'selected' : ''}>正取</option><option ${r.admission === '候補' ? 'selected' : ''}>候補</option></select></td>
           <td class="px-3 py-3"><select data-status="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${paid ? 'bg-green-50' : ''}">${statusOptions}</select>
             ${r.paid_at ? `<div class="mt-1 text-xs ${paid ? 'text-green-700' : 'text-red-700'}">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}${review}</td>
-          <td class="px-3 py-3"><div class="font-bold">${money(r.amount)}</div>${vaInfo}</td>
+          <td class="px-3 py-3"><div class="font-bold">${legacy ? '' : money(r.amount)}</div>${discount}${vaInfo}</td>
           <td class="space-y-1 px-3 py-3"><div class="flex flex-wrap gap-1">${mockBtn}
             <button data-history="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 text-xs hover:bg-slate-100">紀錄</button></div></td>
         </tr>`;
@@ -182,6 +209,7 @@ import '../../styles/global.css';
 
       async function loadRows() {
         const rows = await api<Reg[]>(`/registrations?${query()}`);
+        currentRows = new Map(rows.map((r) => [r.id, r]));
         $('rows').innerHTML = rows.map(row).join('');
         $('empty').classList.toggle('hidden', rows.length > 0);
         $('count').textContent = `共 ${rows.length} 筆`;
@@ -216,6 +244,15 @@ import '../../styles/global.css';
           sendTestEmail(preview.dataset.preview);
           return;
         }
+        const profileBtn = (e.target as HTMLElement).closest<HTMLElement>('[data-profile]');
+        if (profileBtn) {
+          showProfile(Number(profileBtn.dataset.profile));
+          return;
+        }
+        if ((e.target as HTMLElement).closest('[data-close-profile]')) {
+          $<HTMLDialogElement>('profile').close();
+          return;
+        }
         const el = (e.target as HTMLElement).closest<HTMLElement>('[data-mock],[data-history],[data-filter-session],[data-close]');
         if (!el) return;
         if (el.dataset.mock) {
@@ -235,6 +272,81 @@ import '../../styles/global.css';
           loadRows();
         }
         if (el.dataset.close !== undefined) $<HTMLDialogElement>('history').close();
+      });
+
+      // ---- 報名資料（點學生姓名）----
+      let currentRows = new Map<number, Reg>();
+      let profileId = 0;
+      const GRADES = ['幼兒園大班', '國小一年級', '國小二年級', '國小三年級', '國小四年級', '國小五年級', '國小六年級', '國中一年級', '國中二年級', '國中三年級'];
+      // 欄位依報名表順序；select 的選項保留舊站資料原本的值
+      const profileFields: { name: keyof Reg; label: string; type?: 'select' | 'textarea'; options?: string[]; wide?: boolean }[] = [
+        { name: 'student_name', label: '學生姓名' },
+        { name: 'gender', label: '性別', type: 'select', options: ['男', '女'] },
+        { name: 'school', label: '就讀學校' },
+        { name: 'grade', label: '目前就讀年級', type: 'select', options: GRADES },
+        { name: 'parent_name', label: '家長姓名' },
+        { name: 'tel', label: '聯絡電話' },
+        { name: 'phone', label: '行動電話' },
+        { name: 'email', label: 'Email' },
+        { name: 'diet', label: '飲食習慣', type: 'select', options: ['葷', '方便素'] },
+        { name: 'zip', label: '郵遞區號' },
+        { name: 'address', label: '地址', wide: true },
+        { name: 'note', label: '學生狀況說明／備註', type: 'textarea', wide: true },
+      ];
+      const fieldCls = 'mt-1 block w-full rounded-lg border border-black/15 px-3 py-2';
+
+      function showProfile(id: number) {
+        const r = currentRows.get(id);
+        if (!r) return;
+        profileId = id;
+        $('profile-title').textContent = `報名資料｜#${r.id} ${r.student_name}`;
+        const info: [string, string][] = [
+          ['報名編號', String(r.id)],
+          ['報名時間', r.legacy_term ? `舊站匯入（${r.legacy_term} 第 ${r.legacy_id} 筆）` : tw(r.created_at)],
+          ['課程', r.course_title],
+          ['時段', r.session_name],
+          ['正取／候補', r.admission],
+          ['狀態', r.expired ? '等待付費（已逾期）' : r.status],
+          ['應繳金額', r.legacy_term ? '（舊站資料無金額）' : money(r.amount)],
+          ['繳費帳號', r.va_account ?? (r.legacy_va ? `${r.legacy_va}（舊站）` : '')],
+          ['同意辦法', r.agreed_policies ?? ''],
+        ];
+        $('profile-info').innerHTML = info
+          .filter(([, v]) => v)
+          .map(([k, v]) => `<div class="flex gap-2"><dt class="w-20 shrink-0 text-ink-500">${k}</dt><dd class="font-bold">${esc(v)}</dd></div>`)
+          .join('');
+        $('profile-fields').innerHTML = profileFields
+          .map((f) => {
+            const value = (r[f.name] as string | null) ?? '';
+            let control: string;
+            if (f.type === 'select') {
+              const options = f.options!.includes(value) || !value ? f.options! : [value, ...f.options!];
+              control = `<select name="${f.name}" class="${fieldCls}"><option value="">（未填）</option>${options
+                .map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+            } else if (f.type === 'textarea') {
+              control = `<textarea name="${f.name}" rows="3" class="${fieldCls}">${esc(value)}</textarea>`;
+            } else {
+              control = `<input name="${f.name}" value="${esc(value)}" class="${fieldCls}" />`;
+            }
+            return `<label class="block font-bold ${f.wide ? 'sm:col-span-2' : ''}">${f.label}${control}</label>`;
+          })
+          .join('');
+        ($<HTMLFormElement>('profile-form').elements.namedItem('discount_amount') as HTMLInputElement).value = r.discount_amount == null ? '' : String(r.discount_amount);
+        $('profile-error').classList.add('hidden');
+        $<HTMLDialogElement>('profile').showModal();
+      }
+
+      $('profile-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.currentTarget as HTMLFormElement));
+        try {
+          await api(`/registrations/${profileId}/profile`, { method: 'PATCH', body: JSON.stringify(data) });
+          $<HTMLDialogElement>('profile').close();
+          refresh();
+        } catch (err) {
+          $('profile-error').textContent = (err as Error).message;
+          $('profile-error').classList.remove('hidden');
+        }
       });
 
       async function showHistory(id: string) {
