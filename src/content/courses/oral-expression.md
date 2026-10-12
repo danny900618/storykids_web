@@ -3,7 +3,7 @@ title: 口語表達
 category: 學期班（11509學期）
 audience: 小三~小六
 summary: 培養上台口語表達能力
-cover: /images/口語.png
+cover: /images/口語課程圖.png
 images:
   - /images/old/course/71b90b3caeed3abd1e7ce86b716c54db.jpg
   - /images/old/course/b8ec10a75798c92a9e9882b0d47f0245.jpg
