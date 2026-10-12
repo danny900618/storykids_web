@@ -269,10 +269,11 @@ open_questions:
     sample: 舊系統通知信中的帳號範例 96989416652781（96989 + 9 碼，共 14 碼）
     progress: >
       2026-10-12 取得「台新台幣虛擬帳號自動化傳輸申請書」。建議只申請「虛擬帳號即時傳輸（多通道）」：通道 HTTPS、
-      主機 storykids-web-production.c0981985611.workers.dev、PORT 443、路徑 /api/taishin/notify（Worker 已預留，目前回 501）、
+      主機 storykids.com.tw（2026-10-12 決定填正式網域；啟用日期留白「另行通知」，須在 DNS 切換後才啟用）、PORT 443、路徑 /api/taishin/notify（Worker 已預留，目前回 501）、
       格式 JsonV1.1（含轉出帳號／行庫，以規格書為準）、加密「是」、重試 3 次間隔 60 秒、監控「是」。
       sFTP／FTPs／DMZ-FTPs／AP2AP 需要自有主機或固定 IP，不適用 Workers。
-      待向台新確認：企業代碼、JsonV1.1 規格書與加密方式／金鑰、台新的來源 IP（Worker 端可驗證）、測試環境、
+      待向台新確認：企業代碼、JsonV1.1 規格書與加密方式／金鑰、台新的來源 IP（Worker 端可驗證）、測試環境（測試能否先送到正式 Worker 的 workers.dev 網址）、
+      是否有查詢入帳 API、企業網銀入帳明細的下載格式（供每日對帳補漏）、
       能否「新增」通道並與舊系統通道並行，舊系統停用後再「終止」舊通道。
     owner: 補習班 / 舊外包 / 台新
     phase: phase2
@@ -449,6 +450,7 @@ tasks:
   - id: T29
     title: 正式 Worker（storykids-web-production）綁定 storykids.com.tw、www.storykids.com.tw（SSL 自動）
     status: todo
+    notes: ⚠️ storykids.com.tw/api/taishin/notify 必須直接由 Worker 回應，不可設定 apex→www 轉址（台新即時通知不跟隨轉址）；DNS 切換後通知台新啟用即時傳輸
     depends_on: [T9]
   - id: T30
     title: 正式網域設定：Turnstile Hostnames、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
@@ -490,10 +492,16 @@ tasks:
     title: 上線前從舊站重新匯出報名資料並再匯入一次（補上最後一段時間的報名）
     status: todo
     depends_on: [T36]
+  - id: T39
+    title: 每日對帳補漏：報名後台「上傳對帳檔」（企業網銀下載的入帳明細），逐筆走 reconcile()，補上即時通知漏掉的入帳
+    status: todo
+    depends_on: [Q12]
+    notes: 需台新入帳明細範例檔；若台新有查詢入帳 API 則改為排程自動查詢；之後可加「台新每日 Email 明細」由 Email Worker 自動處理
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
     depends_on: [T29]
+    notes: 若台新測試時使用了 workers.dev 網址，要等台新改送 storykids.com.tw 後才關閉
     notes: 測試環境的 workers.dev 網址保留給補習班練習與測試
 
 # -----------------------------------------------------------------------------
