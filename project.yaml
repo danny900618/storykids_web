@@ -511,10 +511,13 @@ tasks:
     notes: 需台新入帳明細範例檔；若台新有查詢入帳 API 則改為排程自動查詢；之後可加「台新每日 Email 明細」由 Email Worker 自動處理
   - id: T40
     title: 建立三竹簡訊轉發主機（relay/README.md）：AWS 帳號＋MFA＋預算通知 → EC2 台北 t4g.nano＋Elastic IP（或 Lightsail 東京）→ 三竹白名單 → DNS sms-relay（DNS only）→ Worker SMS_RELAY_KEY 與 MITAKE_API_URL → 發測試簡訊
-    status: todo
+    status: in_progress
     depends_on: [Q2]
     notes: 程式與設定已完成並以本機 Caddy 實測（無密鑰／錯誤密鑰／GET／其他路徑皆 404，正確密鑰可轉到三竹）；DNS 需等 storykids.com.tw 轉到 Cloudflare
       2026-10-13 使用者決定先用 Lightsail 東京（三竹回覆需台灣 IP，若白名單不受理或仍被擋，改建 EC2 台北）。固定 IP 不可在白名單有效時釋放。
+      2026-10-13 已建立：Lightsail 東京主機 storykids-sms-relay、靜態 IP 52.194.121.120（AWS ap-northeast-1）、防火牆 80／443 開放、SSH 限瀏覽器 SSH。
+      啟動指令碼建立時未執行，改以 base64 手動安裝；Caddy active，外部測試 80→HTTPS 轉址正常。
+      待辦：三竹白名單加入 52.194.121.120；DNS 轉到 Cloudflare 後新增 sms-relay（DNS only）；Worker 設定 SMS_RELAY_KEY 與 MITAKE_API_URL；發測試簡訊。
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
