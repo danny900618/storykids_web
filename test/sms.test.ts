@@ -5,18 +5,21 @@ import { adminRequest, call, db, registerRequest, resetDb, validRegistration } f
 
 const live = { SMS_MODE: 'live', MITAKE_USERNAME: 'test-user', MITAKE_PASSWORD: 'test-pass', MITAKE_API_URL: 'https://smsapi.mitake.com.tw/api/mtk/SmSend' };
 
-let calls: { url: URL; form: URLSearchParams }[] = [];
+let calls: { url: URL; form: URLSearchParams; headers: Headers }[] = [];
+let relayStatus = 200;
 let reply = '[1]\r\nmsgid=1234567890\r\nstatuscode=1\r\nAccountPoint=987\r\n';
 
 beforeEach(async () => {
   await resetDb();
   calls = [];
   reply = '[1]\r\nmsgid=1234567890\r\nstatuscode=1\r\nAccountPoint=987\r\n';
+  relayStatus = 200;
   const realFetch = globalThis.fetch;
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.hostname.endsWith('mitake.com.tw')) {
-      calls.push({ url, form: new URLSearchParams(String(init?.body)) });
+    if (url.hostname.endsWith('mitake.com.tw') || url.hostname === 'sms-relay.example.com') {
+      calls.push({ url, form: new URLSearchParams(String(init?.body)), headers: new Headers(init?.headers) });
+      if (url.hostname === 'sms-relay.example.com' && relayStatus !== 200) return new Response('', { status: relayStatus });
       return new Response(reply);
     }
     return realFetch(input, init);
@@ -59,6 +62,34 @@ describe('三竹簡訊', () => {
     await call(registerRequest(validRegistration('two-seats')), live);
     const config = (await (await call(adminRequest('/api/admin/config'), live)).json()) as { sms_points: number | null };
     expect(config.sms_points).toBe(987);
+  });
+});
+
+describe('經由固定 IP 轉發主機發送（AWS Lightsail）', () => {
+  const relay = { ...live, MITAKE_API_URL: 'https://sms-relay.example.com/api/mtk/SmSend', SMS_RELAY_KEY: 'k'.repeat(64) };
+
+  it('送到轉發主機並帶上密鑰，參數與直連三竹相同', async () => {
+    expect((await call(registerRequest(validRegistration('two-seats')), relay)).status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url.hostname).toBe('sms-relay.example.com');
+    expect(calls[0].url.pathname).toBe('/api/mtk/SmSend');
+    expect(calls[0].url.searchParams.get('CharsetURL')).toBe('UTF8');
+    expect(calls[0].headers.get('X-Relay-Key')).toBe('k'.repeat(64));
+    expect(calls[0].form.get('username')).toBe('test-user');
+  });
+
+  it('直連三竹時不帶轉發密鑰', async () => {
+    await call(registerRequest(validRegistration('two-seats')), live);
+    expect(calls[0].headers.get('X-Relay-Key')).toBeNull();
+  });
+
+  it('轉發主機拒絕（密鑰不符）：報名照常成功，紀錄寫明是轉發主機的問題', async () => {
+    relayStatus = 404;
+    expect((await call(registerRequest(validRegistration('two-seats')), relay)).status).toBe(200);
+    const row = await db().prepare(`SELECT result, body FROM notifications WHERE channel = 'sms'`).first<{ result: string; body: string }>();
+    expect(row!.result).toBe('failed');
+    expect(row!.body).toContain('轉發主機拒絕');
+    expect(row!.body).not.toContain('k'.repeat(64));
   });
 });
 

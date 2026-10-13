@@ -206,6 +206,13 @@ decisions:
   - id: D9
     topic: 流量統計
     choice: Cloudflare Web Analytics（免 cookie），如補習班需要可再加 GA4
+  - id: D10
+    topic: 三竹簡訊固定 IP
+    choice: >
+      自建輕量轉發主機（AWS，Caddy 反向代理，只轉發 POST /api/mtk/SmSend、需 X-Relay-Key 密鑰、自動 HTTPS 與安全更新），
+      Worker 經 sms-relay.storykids.com.tw 發送。三竹 2026-10-13 回覆需「台灣固定 IP」→ AWS EC2 台北（ap-east-2，約 US$8／月）；
+      若三竹主管同意國外固定 IP，可改 Lightsail 東京（約 US$5／月）。設定與步驟在 relay/
+    rejected: 換簡訊商（使用者希望續用三竹）、Cloudflare 專屬出口 IP（企業方案）
 
 # -----------------------------------------------------------------------------
 # 待確認事項
@@ -292,6 +299,7 @@ open_questions:
       是否已開通 HTTP API、舊系統簡訊是否由此帳號發送（登入三竹後台看發送紀錄）
   - id: Q14
     question: 台新、三竹是否要求固定 IP 白名單？（Cloudflare Workers 沒有固定出口 IP）
+    decision: 三竹需要台灣固定 IP（2026-10-13 回覆）→ 架轉發主機（D10、T40）；詢問三竹主管：使用者公司從 AWS 東京發三竹正常，是否為新規定
     owner: 補習班 / 台新 / 三竹
     phase: phase2
     status: partial
@@ -501,6 +509,11 @@ tasks:
     status: todo
     depends_on: [Q12]
     notes: 需台新入帳明細範例檔；若台新有查詢入帳 API 則改為排程自動查詢；之後可加「台新每日 Email 明細」由 Email Worker 自動處理
+  - id: T40
+    title: 建立三竹簡訊轉發主機（relay/README.md）：AWS 帳號＋MFA＋預算通知 → EC2 台北 t4g.nano＋Elastic IP（或 Lightsail 東京）→ 三竹白名單 → DNS sms-relay（DNS only）→ Worker SMS_RELAY_KEY 與 MITAKE_API_URL → 發測試簡訊
+    status: todo
+    depends_on: [Q2]
+    notes: 程式與設定已完成並以本機 Caddy 實測（無密鑰／錯誤密鑰／GET／其他路徑皆 404，正確密鑰可轉到三竹）；DNS 需等 storykids.com.tw 轉到 Cloudflare
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -595,3 +608,8 @@ changelog:
       報名管理後台頁首顯示「測試環境／正式環境」。T33 不再需要刪測試資料；T29 改綁正式 Worker；T38 改為關閉正式 Worker 的 workers.dev 網址。
   - date: 2026-10-12
     note: 決定不做「複製類別」工具（不想多一個後台）；每學期用內容後台內建「複製」逐篇複製課程（Sveltia 複製時會重新產生時段代號），步驟寫在 README。
+  - date: 2026-10-13
+    note: >
+      三竹需台灣固定 IP，新增簡訊轉發主機（D10、T40）：relay/Caddyfile（只轉發帶密鑰的 POST /api/mtk/SmSend）、relay/setup.sh（Lightsail／EC2 啟動指令碼，
+      自動安裝 Caddy、自動 HTTPS、自動安全更新）、relay/README.md（EC2 台北與 Lightsail 安裝步驟、維護與重建）；Worker 支援 SMS_RELAY_KEY 與發送逾時；
+      npm run relay:check 檢查設定一致；本機 Caddy 實測通過；測試 73 項。

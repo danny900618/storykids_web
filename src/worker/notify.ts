@@ -122,8 +122,18 @@ export async function sendSmsLive(env: Env, msg: Message, registrationId: number
     smbody: msg.body,
     clientid: await smsClientId(registrationId, msg.body),
   });
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form });
+  // 經由轉發主機（固定 IP）時帶上密鑰；轉發主機驗證後才會轉給三竹（relay/README.md）
+  const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (env.SMS_RELAY_KEY) headers['X-Relay-Key'] = env.SMS_RELAY_KEY;
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'POST', headers, body: form, signal: AbortSignal.timeout(20_000) });
+  } catch {
+    throw new Error(`三竹簡訊發送失敗：連線逾時或無法連線（${url.hostname}）`);
+  }
   const text = await res.text();
+  // 轉發主機拒絕（密鑰不符或網址錯誤）時回 404，不是三竹的回應
+  if (env.SMS_RELAY_KEY && res.status === 404) throw new Error(`簡訊轉發主機拒絕請求（HTTP 404）：請確認 SMS_RELAY_KEY 與轉發主機的密鑰相同、MITAKE_API_URL 路徑為 /api/mtk/SmSend`);
   const status = text.match(/statuscode=(\w+)/)?.[1];
   const point = text.match(/AccountPoint=(\d+)/)?.[1];
   // 錯誤訊息只記錄三竹的回應內容（不含帳號密碼）

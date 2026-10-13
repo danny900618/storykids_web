@@ -14,7 +14,8 @@
     "db:migrate:production": "wrangler d1 migrations apply DB --remote --env production",
     "deploy:production": "astro build && wrangler deploy --env production",
     "check:worker": "tsc -p src/worker/tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "relay:check": "node scripts/check-relay.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

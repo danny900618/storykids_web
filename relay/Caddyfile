@@ -1,0 +1,49 @@
+# 三竹簡訊轉發主機（AWS Lightsail）的 Caddy 設定
+#
+# 為什麼需要：三竹的簡訊 API 只接受白名單內的固定 IP，Cloudflare Worker 沒有固定 IP。
+# Worker 把簡訊請求送到這台主機，這台主機用自己的固定 IP 轉給三竹。
+#
+# 安全設計：
+# - 只接受帶正確密鑰（X-Relay-Key）的 POST /api/mtk/SmSend，其他一律回 404，不是公開代理
+# - 只會轉發到三竹的簡訊 API（網址寫死在這裡）
+# - 密鑰轉發前移除，不會送到三竹
+# - 不記錄請求內容（內含三竹帳密與家長手機）
+#
+# 環境變數（/etc/caddy/relay.env，由 setup.sh 建立）：
+#   RELAY_HOST  轉發主機的網址，例如 sms-relay.storykids.com.tw
+#   RELAY_KEY   與 Worker 的 SMS_RELAY_KEY 相同的密鑰
+#   ACME_EMAIL  HTTPS 憑證到期等通知的信箱
+
+{
+	email {$ACME_EMAIL}
+	# 不開放 Caddy 的管理介面到網路上（預設只在本機，這裡明確關閉）
+	admin off
+}
+
+{$RELAY_HOST} {
+	@authorized {
+		method POST
+		path /api/mtk/SmSend
+		header X-Relay-Key {$RELAY_KEY}
+	}
+
+	handle @authorized {
+		request_header -X-Relay-Key
+		reverse_proxy https://smsapi.mitake.com.tw {
+			header_up Host smsapi.mitake.com.tw
+			transport http {
+				dial_timeout 10s
+				response_header_timeout 20s
+			}
+		}
+	}
+
+	# 健康檢查（不需要密鑰，不會連到三竹）：確認主機與 HTTPS 正常
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	handle {
+		respond 404
+	}
+}

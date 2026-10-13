@@ -58,7 +58,8 @@
     "CONTACT_PHONE": "04-23196868",
     // 有人報名時通知的公司信箱
     "COMPANY_EMAIL": "service@storykids.com.tw",
-    // 三竹簡訊發送網址（企業帳號）；個人帳號改為 http://smsb2c.mitake.com.tw/b2c/mtk/SmSend，以三竹提供的文件為準
+    // 三竹簡訊發送網址（企業帳號）。三竹只接受台灣固定 IP，Cloudflare 直連會逾時：
+    // 轉發主機架好後改為 https://sms-relay.storykids.com.tw/api/mtk/SmSend，並設定 secret SMS_RELAY_KEY（relay/README.md）
     // 帳號密碼用 `wrangler secret put MITAKE_USERNAME`、`wrangler secret put MITAKE_PASSWORD`
     "MITAKE_API_URL": "https://smsapi.mitake.com.tw/api/mtk/SmSend",
     // 內容後台（/cms）的 GitHub 登入：填入 GitHub OAuth App 的 Client ID；Client secret 用 `wrangler secret put GITHUB_CLIENT_SECRET`

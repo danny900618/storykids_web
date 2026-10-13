@@ -32,7 +32,8 @@
 | [Sveltia CMS](https://sveltiacms.app) | 內容後台 `/cms`：消息、課程與上課時段、老師、相簿、網站設定（開源，網頁放在本站，登入流程由本站 Worker 處理，不依賴第三方伺服器） | 免費 | 每位編輯者需有 GitHub 帳號，並加為 repo 協作者（Write 權限） |
 | GitHub OAuth App | 內容後台的「用 GitHub 登入」 | 免費 | 建在 repo 擁有者帳號下；callback URL：`https://網站網址/api/cms-auth/callback` |
 | 網路中文 | 網域 storykids.com.tw 註冊（到期 2028-04-17） | 每年續約 | ⚠️ 目前註冊人為「魔瓶視覺設計」，需過戶給補習班 |
-| 三竹簡訊 | 報名、繳費簡訊 | 每則計費 | **尚未串接** |
+| 三竹簡訊 | 報名、繳費簡訊 | 每則計費 | 程式已串接；三竹只接受**台灣固定 IP**，需經由轉發主機發送 |
+| AWS（EC2 台北，或 Lightsail） | 三竹簡訊轉發主機：提供固定 IP（[relay/](relay/README.md)） | 約 US$5～8／月，**需綁信用卡、每月自動扣款** | 建議用補習班帳號開立；**尚未建立** |
 | 台新銀行 | 虛擬帳號代收、自動對帳 | 代收手續費 | **尚未串接** |
 | 寄信服務（建議 Brevo） | 報名確認信，寄件人 `故事講堂 <service@storykids.com.tw>` | 免費每天 300 封 | **尚未串接** |
 
@@ -54,7 +55,7 @@
 | Sveltia CMS | 開源 | 否 | — | 從 unpkg CDN 載入（已鎖定版本），CDN 故障時後台暫時打不開 |
 | 網域（網路中文） | 年費 | 視網路中文設定 | — | **忘記續約網站會打不開**，建議開自動續約 |
 
-**之後串接時會新增的費用**（依合約為準）：三竹簡訊（每則計費，通常為**預付點數，點數用完簡訊就停**，要留意餘額）、台新代收手續費（每筆）、寄信服務（Brevo 免費每天 300 封，超過當天停止寄送或升級付費）。
+**之後串接時會新增的費用**（依合約為準）：AWS 簡訊轉發主機（約 US$5～8／月，綁卡自動扣款，需設定預算通知，見 [relay/README.md](relay/README.md)）、三竹簡訊（每則計費，通常為**預付點數，點數用完簡訊就停**，要留意餘額）、台新代收手續費（每筆）、寄信服務（Brevo 免費每天 300 封，超過當天停止寄送或升級付費）。
 
 **選配：Cloudflare Workers Paid（每月 US$5）**：額度提高到每月 1,000 萬次請求，超過才按量計費。**需要綁信用卡、每月自動扣款**，Cloudflare 沒有消費上限設定。正式開放報名、擔心尖峰時段時再考慮升級。
 
@@ -128,7 +129,7 @@ rm /tmp/legacy.sql
 |---|---|
 | 台新虛擬帳號規則 | `src/worker/payment.ts` → `generateVirtualAccount()` |
 | 台新入帳通知 | `src/worker/index.ts` 的 `/api/taishin/notify`：驗證來源與簽章、解密後呼叫 `reconcile()` |
-| 三竹簡訊 | **已串接**（`sendSmsLive()`，HTTP API SmSend）。帳密用 `wrangler secret put MITAKE_USERNAME`／`MITAKE_PASSWORD`；發送網址 `MITAKE_API_URL`（企業／個人帳號不同）。測試通過後把 `SMS_MODE` 改為 `live`；後台「發測試簡訊」可測試（會扣點數），右上角顯示剩餘點數 |
+| 三竹簡訊 | **已串接**（`sendSmsLive()`，HTTP API SmSend）。三竹只接受台灣固定 IP，Cloudflare 連不到：要先架轉發主機（[relay/README.md](relay/README.md)），再把 `MITAKE_API_URL` 改為轉發主機、設定 `SMS_RELAY_KEY`。帳密用 `wrangler secret put MITAKE_USERNAME`／`MITAKE_PASSWORD`；發送網址 `MITAKE_API_URL`（企業／個人帳號不同）。測試通過後把 `SMS_MODE` 改為 `live`；後台「發測試簡訊」可測試（會扣點數），右上角顯示剩餘點數 |
 | Email | **已串接 Brevo**（`sendEmailLive()`，金鑰 `BREVO_API_KEY` 已設定）。待 DNS 轉到 Cloudflare 後在 Brevo 驗證網域（DKIM／SPF／DMARC），再把 `MAIL_MODE` 改為 `live`；後台右上角「寄測試信」可隨時測試 |
 | 正式啟用 | 三個 `*_MODE` 改為 `live` |
 
@@ -146,6 +147,7 @@ rm /tmp/legacy.sql
 │   ├── components/  layouts/  lib/  styles/
 │   └── worker/               # 後端：index（路由）、register、profile（報名欄位檢查）、admin、auth、payment、notify、sessions、cms-auth（內容後台登入）
 ├── scripts/import-legacy.mjs # 匯入舊站報名資料（xls → SQL）
+├── relay/                    # 三竹簡訊轉發主機（AWS，固定 IP）：Caddy 設定、啟動指令碼、安裝步驟
 └── .github/workflows/        # 後台上傳圖片自動縮圖
 ```
 

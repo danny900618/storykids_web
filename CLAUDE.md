@@ -17,6 +17,7 @@
   - 對帳一律走 `payment.ts` 的 `reconcile()`（台新入帳通知與模擬入帳共用），以交易序號 `ref` 防止重複入帳。
   - 後台 API 一律經過 `auth.ts` 驗證；沒有設定任何登入方式時必須拒絕存取（fail closed）。
   - 金流、簡訊、Email 由 `*_MODE` 環境變數控制，`mock` 為測試模式（不對外發送）。
+  - 三竹簡訊只接受台灣固定 IP：經由 `relay/` 的轉發主機（AWS，Caddy）發送，Worker 帶 `SMS_RELAY_KEY`。修改轉發設定時 `relay/Caddyfile` 與 `relay/setup.sh` 內嵌版本要一致（`npm run relay:check`）。
 - 資料表異動用 `migrations/` 新增檔案，不要修改已套用的 migration；要套用到測試（`npm run db:migrate:remote`）與正式（`npm run db:migrate:production`）兩個資料庫。
 - 兩套環境：測試 `storykids-web`（最上層設定）、正式 `storykids-web-production`（`wrangler.jsonc` 的 `env.production`，不繼承 vars／D1／ratelimits，改設定兩邊都要改）。正式環境的 wrangler 指令都要加 `--env production`。
 - 後台存檔會直接 commit 到 GitHub：修改前先 `git pull`。

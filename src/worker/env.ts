@@ -41,6 +41,9 @@ export interface Env {
   MITAKE_PASSWORD?: string;
   // 發送網址：企業帳號 https://smsapi.mitake.com.tw/api/mtk/SmSend；個人帳號 http://smsb2c.mitake.com.tw/b2c/mtk/SmSend（以三竹提供的文件為準）
   MITAKE_API_URL?: string;
+  // 三竹只接受固定 IP：經由 AWS Lightsail 轉發主機發送時，MITAKE_API_URL 改為 https://轉發主機網址/api/mtk/SmSend，
+  // 並設定與轉發主機相同的密鑰：`wrangler secret put SMS_RELAY_KEY`（relay/README.md）
+  SMS_RELAY_KEY?: string;
 
   // 後台登入（擇一）：
   // 1. Cloudflare Access（正式建議）：設定 ACCESS_TEAM_DOMAIN 與 ACCESS_AUD
