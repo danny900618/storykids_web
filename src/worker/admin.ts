@@ -113,8 +113,9 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
     if (body.admission === '正取') {
       next.admission = '正取';
       next.status = '等待付費';
-      next.va_account = reg.va_account ?? generateVirtualAccount(reg.id);
+      // 繳款截止日編在帳號裡：遞補時依新的期限重新產生帳號
       next.va_expires_at = paymentDeadline();
+      next.va_account = generateVirtualAccount(env, reg.id, reg.amount, next.va_expires_at);
       promoted = true;
       changes.push('候補 → 正取（遞補）');
     } else if (body.admission === '候補') {

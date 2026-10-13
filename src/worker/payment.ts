@@ -1,24 +1,21 @@
 // 金流：台新虛擬帳號與自動對帳
-// 目前為測試模式（PAYMENT_MODE = mock）：產生「看起來像」的假帳號，後台可按「模擬入帳」測試對帳流程。
-// 拿到台新規格書後：
-//   1. 改寫 generateVirtualAccount()：依台新編碼規則與檢查碼演算法產生帳號
-//   2. 實作 /api/taishin/notify（或排程抓對帳檔）：驗證簽章、解密入帳資料後，呼叫 reconcile()
+// 帳號依台新公式 5 產生（taishin.ts）；入帳資料來自台新 sFTP 銷帳檔（bank-files.ts），一律經過 reconcile()
+// 測試模式（PAYMENT_MODE = mock）：檢查碼故意算錯，銀行會拒絕轉帳，避免測試帳號真的收到錢；後台可按「模擬入帳」測試
 import type { Env, Registration } from './env';
 import { nowIso } from './env';
 import { notifyPaid, notifyReviewNeeded } from './notify';
-
-// 企業代號（取自舊站繳費說明：96989 開頭、共 14 碼）
-const COMPANY_CODE = '96989';
+import { buildVirtualAccount } from './taishin';
 
 // 已完成繳費的狀態
 export const PAID_STATUSES = ['已付費', '合庫轉帳', '現金繳清'];
 
-// 假帳號：96989 + 報名編號 7 碼 + 2 碼假檢查碼 = 14 碼
-// ⚠️ 僅供測試，真正的檢查碼演算法要依台新規格書
-export function generateVirtualAccount(registrationId: number): string {
-  const serial = String(registrationId).padStart(7, '0');
-  const check = String((registrationId * 37 + 11) % 97).padStart(2, '0');
-  return `${COMPANY_CODE}${serial}${check}`;
+// 虛擬帳號：96989 ＋ 報名編號後 4 碼 ＋ 繳款截止日（民國年尾數＋年中第幾天）＋ 檢查碼（含金額）
+// 截止日與金額都編在帳號裡：遞補或改期限時要重新產生帳號
+export function generateVirtualAccount(env: Env, registrationId: number, amount: number, deadlineIso: string): string {
+  const va = buildVirtualAccount(registrationId, deadlineIso, amount);
+  if (env.PAYMENT_MODE === 'live') return va;
+  // 測試模式：檢查碼 +5，格式看起來一樣，但銀行檢核不會通過
+  return `${va.slice(0, 13)}${(Number(va[13]) + 5) % 10}`;
 }
 
 export type ReconcileResult =
@@ -28,6 +25,7 @@ export type ReconcileResult =
   | 'unmatched' // 查無此帳號
   | 'already_paid' // 這筆報名已經繳過費
   | 'not_payable' // 報名已取消／轉梯次／候補：轉人工確認（可能需退費）
+  | 'legacy' // 轉入舊站報名的繳費帳號：舊站資料沒有金額，轉人工確認
   | 'duplicate_event'; // 同一筆入帳通知重送，已處理過
 
 // 入帳對帳：台新入帳通知、排程對帳、「模擬入帳」共用
@@ -37,12 +35,18 @@ export async function reconcile(
   input: { ref: string; vaAccount: string; amount: number; raw?: string },
 ): Promise<{ result: ReconcileResult; registration?: Registration }> {
   const now = nowIso();
-  const reg = await env.DB.prepare('SELECT * FROM registrations WHERE va_account = ?').bind(input.vaAccount).first<Registration>();
+  // 新系統帳號找不到時，再比對舊站匯入的帳號（舊站停用前後，家長可能仍轉入舊帳號）
+  const reg =
+    (await env.DB.prepare('SELECT * FROM registrations WHERE va_account = ?').bind(input.vaAccount).first<Registration>()) ??
+    (await env.DB.prepare('SELECT * FROM registrations WHERE legacy_va = ? ORDER BY id DESC LIMIT 1').bind(input.vaAccount).first<Registration>());
 
   let result: ReconcileResult;
   let review: string | null = null;
   if (!reg) {
     result = 'unmatched';
+  } else if (reg.legacy_term) {
+    result = 'legacy';
+    review = `轉入舊站報名（${reg.legacy_term}）的繳費帳號 ${input.amount} 元，舊站資料沒有應繳金額，請確認後手動更新狀態`;
   } else if (PAID_STATUSES.includes(reg.status)) {
     result = 'already_paid';
     review = `重複繳費：已於 ${reg.paid_at ?? '先前'} 繳清，又收到 ${input.amount} 元（可能需退費）`;
@@ -107,4 +111,26 @@ async function audit(env: Env, registrationId: number, action: string, detail: s
   await env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, 'system', ?, ?, ?)`)
     .bind(registrationId, action, detail, now)
     .run();
+}
+
+// 銀行沖正（銷帳檔「負號」，表示支取）：不自動改狀態，記錄並標記需人工確認
+export async function recordReversal(env: Env, input: { ref: string; vaAccount: string; amount: number; raw?: string }): Promise<'reversal' | 'duplicate_event'> {
+  const now = nowIso();
+  const reg =
+    (await env.DB.prepare('SELECT * FROM registrations WHERE va_account = ?').bind(input.vaAccount).first<Registration>()) ??
+    (await env.DB.prepare('SELECT * FROM registrations WHERE legacy_va = ? ORDER BY id DESC LIMIT 1').bind(input.vaAccount).first<Registration>());
+  const inserted = await env.DB.prepare(
+    `INSERT INTO payment_events (ref, va_account, amount, registration_id, result, raw, created_at)
+     VALUES (?, ?, ?, ?, 'reversal', ?, ?) ON CONFLICT (ref) DO NOTHING`,
+  )
+    .bind(input.ref, input.vaAccount, -input.amount, reg?.id ?? null, input.raw ?? null, now)
+    .run();
+  if (inserted.meta.changes === 0) return 'duplicate_event';
+  if (reg) {
+    const review = `銀行沖正（支取）${input.amount} 元，請確認這筆繳費是否有效`;
+    await env.DB.prepare('UPDATE registrations SET review_note = ?, updated_at = ? WHERE id = ?').bind(review, now, reg.id).run();
+    await audit(env, reg.id, '入帳需人工確認', `${review}（交易序號 ${input.ref}）`, now);
+    await notifyReviewNeeded(env, { ...reg, review_note: review });
+  }
+  return 'reversal';
 }

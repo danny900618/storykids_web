@@ -79,6 +79,22 @@ import '../../styles/global.css';
         <p id="empty" class="hidden p-8 text-center text-ink-500">沒有符合條件的報名</p>
       </section>
 
+      <!-- 台新銷帳檔：台新 sFTP 上傳後自動轉交、解析與對帳 -->
+      <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <div class="flex flex-wrap items-center gap-3">
+          <h2 class="font-bold">台新銷帳檔</h2>
+          <span class="text-xs text-ink-500">台新每隔幾分鐘上傳入帳資料，系統自動對帳；「需人工確認」的報名會在上方列表標示</span>
+        </div>
+        <div class="mt-3 overflow-x-auto">
+          <table class="w-full min-w-[700px] text-left text-sm">
+            <thead class="bg-slate-100 text-ink-500">
+              <tr><th class="px-3 py-2">收到時間</th><th class="px-3 py-2">檔名</th><th class="px-3 py-2">狀態</th><th class="px-3 py-2">結果</th></tr>
+            </thead>
+            <tbody id="bank-rows" class="divide-y divide-black/5"></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- 操作紀錄：誰在什麼時候做了什麼 -->
       <section class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
         <div class="flex flex-wrap items-center gap-3">
@@ -114,6 +130,7 @@ import '../../styles/global.css';
               <input name="discount_amount" type="number" min="0" step="1" class="mt-1 block w-48 rounded-lg border border-black/15 bg-white px-3 py-2" />
             </label>
             <p class="mt-1 text-xs text-ink-500">只做紀錄與顯示（例如與家長私下談好的優惠），不會改變應繳金額與繳費帳號。</p>
+            <p class="mt-1 text-xs font-bold text-red-700">⚠️ 繳費帳號已綁定原應繳金額，銀行會檢核金額：家長轉帳必須是原金額，優惠部分請另以現金退還等方式處理。</p>
           </div>
           <p id="profile-error" class="hidden rounded-lg bg-red-50 p-3 text-red-700"></p>
         </div>
@@ -216,7 +233,20 @@ import '../../styles/global.css';
         $('count').textContent = `共 ${rows.length} 筆`;
       }
 
-      const refresh = () => Promise.all([loadSessions(), loadRows(), loadAudit()]).catch((e) => alert(e.message));
+      // 台新銷帳檔（最近 20 筆）
+      async function loadBankFiles() {
+        const { items } = await api<{ items: { id: number; filename: string; received_at: string; status: string; note: string | null }[] }>('/bank-files');
+        const label: Record<string, string> = { parsed: '已對帳', failed: '⚠️ 有無法辨識的內容', pending: '待處理' };
+        $('bank-rows').innerHTML = items.length
+          ? items.slice(0, 20).map((f) => `<tr class="align-top">
+              <td class="px-3 py-2 whitespace-nowrap">${tw(f.received_at)}</td>
+              <td class="px-3 py-2 font-mono text-xs">${esc(f.filename)}</td>
+              <td class="px-3 py-2 whitespace-nowrap ${f.status === 'failed' ? 'font-bold text-red-700' : ''}">${label[f.status] ?? esc(f.status)}</td>
+              <td class="px-3 py-2">${esc(f.note)}</td></tr>`).join('')
+          : '<tr><td colspan="4" class="px-3 py-6 text-center text-ink-500">尚未收到銀行銷帳檔</td></tr>';
+      }
+
+      const refresh = () => Promise.all([loadSessions(), loadRows(), loadAudit(), loadBankFiles()]).catch((e) => alert(e.message));
 
       async function update(id: string, body: Record<string, string>, confirmText?: string) {
         if (confirmText && !confirm(confirmText)) return refresh();
@@ -260,7 +290,7 @@ import '../../styles/global.css';
           if (!confirm('模擬台新入帳通知（測試用）：這筆報名會被標記為已付費，並記錄收據通知。')) return;
           try {
             const out = await api<{ result: string }>(`/registrations/${el.dataset.mock}/mock-payment`, { method: 'POST', body: '{}' });
-            const labels: Record<string, string> = { paid: '對帳成功，已改為已付費', paid_late: '逾期後才入帳，已標記需人工確認', amount_mismatch: '金額不符，已標記需人工確認', unmatched: '查無帳號', already_paid: '已付費過（重複繳費），已標記需人工確認', not_payable: '報名非正取或已取消，已標記需人工確認', duplicate_event: '重複的入帳通知' };
+            const labels: Record<string, string> = { paid: '對帳成功，已改為已付費', paid_late: '逾期後才入帳，已標記需人工確認', amount_mismatch: '金額不符，已標記需人工確認', unmatched: '查無帳號', already_paid: '已付費過（重複繳費），已標記需人工確認', not_payable: '報名非正取或已取消，已標記需人工確認', legacy: '舊站帳號，已標記需人工確認', duplicate_event: '重複的入帳通知' };
             alert(labels[out.result] ?? out.result);
           } catch (err) {
             alert((err as Error).message);

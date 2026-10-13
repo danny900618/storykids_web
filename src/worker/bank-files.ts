@@ -1,8 +1,10 @@
 // 台新銷帳檔：台新以 sFTP 上傳到轉發主機（relay/），主機轉交到 POST /api/taishin/file
-// 先完整保存原始檔案（D1 bank_files），解析與對帳待取得台新「公版格式」規格後實作（parseBankFile → reconcile()）
+// 先完整保存原始檔案（D1 bank_files），再逐筆解析（taishin.ts）並對帳：轉入 → reconcile()；沖正 → recordReversal()
 import type { Env } from './env';
 import { json, nowIso } from './env';
 import { timingSafeEqual } from './auth';
+import { parseSettlementFile } from './taishin';
+import { reconcile, recordReversal } from './payment';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 單一銷帳檔上限 5 MB
 
@@ -41,5 +43,35 @@ export async function handleBankFile(request: Request, env: Env): Promise<Respon
   await env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (NULL, 'system', '收到銷帳檔', ?, ?)`)
     .bind(`${filename}（${bytes.length} bytes，#${result.id}）`, nowIso())
     .run();
-  return json({ ok: true, id: result.id, sha256 });
+  const summary = await processBankFile(env, result.id, bytes);
+  return json({ ok: true, id: result.id, sha256, ...summary });
+}
+
+const RESULT_LABELS: Record<string, string> = {
+  paid: '對帳成功',
+  paid_late: '逾期入帳',
+  amount_mismatch: '金額不符',
+  unmatched: '查無帳號',
+  already_paid: '重複繳費',
+  not_payable: '報名非正取或已取消',
+  legacy: '舊站帳號',
+  reversal: '銀行沖正',
+  duplicate_event: '已處理過',
+};
+
+// 解析並逐筆對帳；同一筆交易（ref 相同）重送不會重複入帳。解析失敗的行記在 note，檔案狀態為 failed 方便人工查看
+export async function processBankFile(env: Env, id: number, bytes: Uint8Array): Promise<{ records: number; counts: Record<string, number> }> {
+  const { records, errors } = parseSettlementFile(bytes);
+  const counts: Record<string, number> = {};
+  for (const r of records) {
+    const input = { ref: r.ref, vaAccount: r.va, amount: r.amount, raw: r.line };
+    const outcome = r.sign === '+' ? (await reconcile(env, input)).result : await recordReversal(env, input);
+    counts[outcome] = (counts[outcome] ?? 0) + 1;
+  }
+  const parts = Object.entries(counts).map(([k, n]) => `${RESULT_LABELS[k] ?? k} ${n}`);
+  const note = [`共 ${records.length} 筆${parts.length ? `：${parts.join('、')}` : ''}`, ...errors.slice(0, 20)].join('；');
+  await env.DB.prepare('UPDATE bank_files SET status = ?, note = ?, processed_at = ? WHERE id = ?')
+    .bind(errors.length ? 'failed' : 'parsed', note, nowIso(), id)
+    .run();
+  return { records: records.length, counts };
 }

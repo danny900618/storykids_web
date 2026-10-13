@@ -127,8 +127,8 @@ rm /tmp/legacy.sql
 
 | 項目 | 要改的地方 |
 |---|---|
-| 台新虛擬帳號規則 | `src/worker/payment.ts` → `generateVirtualAccount()` |
-| 台新入帳通知 | `src/worker/index.ts` 的 `/api/taishin/notify`：驗證來源與簽章、解密後呼叫 `reconcile()` |
+| 台新虛擬帳號規則 | ✅ 已依台新公式 5 實作（`src/worker/taishin.ts`）：96989＋報名編號後 4 碼＋繳款截止日＋檢查碼（含金額）。測試模式檢查碼故意錯誤，銀行不會收款；正式模式（`PAYMENT_MODE=live`）才產生可繳費的帳號 |
+| 台新入帳資料 | ✅ 台新以 sFTP 上傳銷帳檔到轉發主機（[relay/](relay/README.md)），主機轉交 `/api/taishin/file`，解析後逐筆 `reconcile()`；HTTPS 即時通知月費 NT$5,000，不使用。待台新啟用 sFTP 並以測試檔驗證 |
 | 三竹簡訊 | **已串接**（`sendSmsLive()`，HTTP API SmSend）。三竹只接受台灣固定 IP，Cloudflare 連不到：要先架轉發主機（[relay/README.md](relay/README.md)），再把 `MITAKE_API_URL` 改為轉發主機、設定 `SMS_RELAY_KEY`。帳密用 `wrangler secret put MITAKE_USERNAME`／`MITAKE_PASSWORD`；發送網址 `MITAKE_API_URL`（企業／個人帳號不同）。測試通過後把 `SMS_MODE` 改為 `live`；後台「發測試簡訊」可測試（會扣點數），右上角顯示剩餘點數 |
 | Email | **已串接 Brevo**（`sendEmailLive()`，金鑰 `BREVO_API_KEY` 已設定）。待 DNS 轉到 Cloudflare 後在 Brevo 驗證網域（DKIM／SPF／DMARC），再把 `MAIL_MODE` 改為 `live`；後台右上角「寄測試信」可隨時測試 |
 | 正式啟用 | 三個 `*_MODE` 改為 `live` |

@@ -18,6 +18,7 @@
   - 後台 API 一律經過 `auth.ts` 驗證；沒有設定任何登入方式時必須拒絕存取（fail closed）。
   - 金流、簡訊、Email 由 `*_MODE` 環境變數控制，`mock` 為測試模式（不對外發送）。
   - 台新銷帳檔：台新 sFTP 上傳到轉發主機，主機轉交到 `/api/taishin/file`（`bank-files.ts`，需 `TAISHIN_FILE_KEY`），原始檔保存在 D1 `bank_files`；解析後一律走 `reconcile()`。
+  - 虛擬帳號依台新公式 5（`taishin.ts`）：截止日與金額編在帳號裡，改期限（例如遞補）要重新產生帳號；測試模式檢查碼故意錯誤。
   - 三竹簡訊只接受台灣固定 IP：經由 `relay/` 的轉發主機（AWS，Caddy）發送，Worker 帶 `SMS_RELAY_KEY`。修改轉發設定時 `relay/Caddyfile` 與 `relay/setup.sh` 內嵌版本要一致（`npm run relay:check`）。
 - 資料表異動用 `migrations/` 新增檔案，不要修改已套用的 migration；要套用到測試（`npm run db:migrate:remote`）與正式（`npm run db:migrate:production`）兩個資料庫。
 - 兩套環境：測試 `storykids-web`（最上層設定）、正式 `storykids-web-production`（`wrangler.jsonc` 的 `env.production`，不繼承 vars／D1／ratelimits，改設定兩邊都要改）。正式環境的 wrangler 指令都要加 `--env production`。

@@ -79,8 +79,8 @@ export function validRegistration(sessionCode: string, extra: Record<string, unk
   };
 }
 
-export async function register(sessionCode: string, extra: Record<string, unknown> = {}) {
-  const res = await call(registerRequest(validRegistration(sessionCode, extra)));
+export async function register(sessionCode: string, extra: Record<string, unknown> = {}, overrides: Partial<Env> = {}) {
+  const res = await call(registerRequest(validRegistration(sessionCode, extra)), overrides);
   return { res, body: (await res.json()) as Record<string, unknown> & { id: number; admission: string; va_account: string | null; amount: number } };
 }
 

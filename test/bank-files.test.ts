@@ -26,7 +26,8 @@ describe('台新銷帳檔', () => {
     const res = await call(upload(bytes), withKey);
     expect(res.status).toBe(200);
     const row = await db().prepare('SELECT filename, size, content_b64, status FROM bank_files').first<{ filename: string; size: number; content_b64: string; status: string }>();
-    expect(row).toMatchObject({ filename: 'TS96989_20261030.txt', size: bytes.length, status: 'pending' });
+    // 內容不是銷帳格式：仍完整保存，狀態標為 failed 方便人工查看
+    expect(row).toMatchObject({ filename: 'TS96989_20261030.txt', size: bytes.length, status: 'failed' });
     expect([...Uint8Array.from(atob(row!.content_b64), (c) => c.charCodeAt(0))]).toEqual([...bytes]);
     const audit = await db().prepare(`SELECT detail FROM audit_log WHERE action = '收到銷帳檔'`).first<{ detail: string }>();
     expect(audit!.detail).toContain('TS96989_20261030.txt');

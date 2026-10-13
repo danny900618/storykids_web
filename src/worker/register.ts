@@ -120,7 +120,7 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
 
   // 正取：產生繳費帳號（帳號依報名編號計算，所以在寫入後才能產生）
   if (reg.admission === '正取') {
-    reg.va_account = generateVirtualAccount(reg.id);
+    reg.va_account = generateVirtualAccount(env, reg.id, reg.amount, reg.va_expires_at!);
     await env.DB.prepare('UPDATE registrations SET va_account = ? WHERE id = ?').bind(reg.va_account, reg.id).run();
   }
 
