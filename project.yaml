@@ -514,6 +514,7 @@ tasks:
     status: todo
     depends_on: [Q2]
     notes: 程式與設定已完成並以本機 Caddy 實測（無密鑰／錯誤密鑰／GET／其他路徑皆 404，正確密鑰可轉到三竹）；DNS 需等 storykids.com.tw 轉到 Cloudflare
+      2026-10-13 使用者決定先用 Lightsail 東京（三竹回覆需台灣 IP，若白名單不受理或仍被擋，改建 EC2 台北）。固定 IP 不可在白名單有效時釋放。
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo

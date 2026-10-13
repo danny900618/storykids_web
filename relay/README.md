@@ -81,6 +81,8 @@ Lightsail 主控台（https://lightsail.aws.amazon.com）→ **Create instance**
 Lightsail → **Networking** → **Create static IP** → 選 `storykids-sms-relay` → 建立。記下這個 IP。
 
 ⚠️ 固定 IP **要一直綁在主機上**（免費）；沒綁主機時 AWS 會收費。
+⚠️ 固定 IP 只要留在帳號裡就**只有我們能用**；一旦 **Release（釋放）**，IP 會回到 AWS 公用池、可能分配給別人。
+**三竹白名單還有這個 IP 時，絕對不要釋放**；不用時先請三竹移除白名單，再釋放。
 
 ### 6. 防火牆
 
@@ -191,6 +193,6 @@ sudo journalctl -u caddy --since today     # 轉發服務紀錄（不含簡訊�
 ### 主機壞掉重建（約 15 分鐘）
 
 1. 依第 3～4 步建立新主機（同一份啟動指令碼）
-2. Networking → 把固定 IP 從舊主機 **Detach**，再 **Attach** 到新主機（IP 不變，三竹白名單不用改）
+2. Networking → 把固定 IP 從舊主機 **Detach**，再 **Attach** 到新主機（IP 不變，三竹白名單不用改）（只做 Detach／Attach，**不要 Release**）
 3. 確認 https://sms-relay.storykids.com.tw/healthz 回 `ok`，後台發測試簡訊
 4. 刪除舊主機
