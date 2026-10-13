@@ -3,7 +3,7 @@ title: 專題表達R4
 category: 學期班（11509學期）
 audience: 小五~國中
 summary: 1.學會觀察與提出問題 2.使用資料、案例、數據支持論點 3.辨識論證謬誤與偏誤 4.辯論技巧應用，針對主題進行辯論
-cover: /images/專題課程圖.png
+cover: /images/R4.png
 images:
   - /images/old/course/3a1e2d7b9bd05748bb10d5fd85e1c559.jpg
   - /images/old/course/10a1033c676cd6210ff8eb6bb0aced3a.jpg
