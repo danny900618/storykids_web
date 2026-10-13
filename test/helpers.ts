@@ -98,5 +98,5 @@ export const getRegistration = (id: number) => db().prepare('SELECT * FROM regis
 
 // 每個測試前清空資料表
 export async function resetDb() {
-  await db().batch(['notifications', 'payment_events', 'audit_log', 'registrations'].map((t) => db().prepare(`DELETE FROM ${t}`)));
+  await db().batch(['notifications', 'payment_events', 'audit_log', 'registrations', 'bank_files'].map((t) => db().prepare(`DELETE FROM ${t}`)));
 }

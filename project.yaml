@@ -531,10 +531,15 @@ tasks:
       剩餘：DNS 轉到 Cloudflare 後新增 sms-relay（DNS only），兩個環境 MITAKE_API_URL 改為 https://sms-relay.storykids.com.tw/api/mtk/SmSend；
       正式環境設定 SMS_RELAY_KEY、MITAKE_USERNAME／MITAKE_PASSWORD（--env production）；Lightsail 當機通知（README 第 11 步）。
   - id: T41
-    title: 台新銀銷帳檔改走 FTPS：轉發主機架 FTPS（只開放台新 IP、TLS、chroot 上傳目錄）→ 收檔後轉交 Worker → 解析公版格式 → reconcile()；虛擬帳號改用附件2 規則
-    status: todo
+    title: 台新銷帳檔改走 sFTP：轉發主機 sFTP（port 2222、帳號 taishin、/upload、只開放台新 IP）→ 每分鐘轉交 Worker /api/taishin/file → D1 bank_files → 解析公版格式 → reconcile()；虛擬帳號改用附件2 規則
+    status: in_progress
     depends_on: [Q12]
-    notes: 需台新附件2（帳號編碼與檢查碼）與 FTPS 公版格式規格書／範例檔；若台新限台灣 IP，轉發主機改建 EC2 台北（簡訊白名單一併更新）
+    notes: >
+      2026-10-13 申請書已填寫（sFTP 新增、FTPS 終止、傳檔每 5 分鐘、公版格式、啟用日期約 2026-10-30）。選 sFTP 而非 FTPS：單一連接埠、不需憑證與 passive 埠段。
+      已完成：migration 0005（bank_files 原始檔完整保存、sha256 防重複）、Worker /api/taishin/file（TAISHIN_FILE_KEY，fail closed）、後台 API /api/admin/bank-files、
+      relay/sftp-setup.sh（sshd Match chroot、ssh.socket、轉交程式＋systemd timer），本機端到端測試通過；測試 79 項。
+      待辦：主機執行 sftp-setup.sh、Lightsail 防火牆開 2222 給台新 IP、正式環境 TAISHIN_FILE_KEY；取得附件2 與公版格式規格後實作解析與對帳。
+      若台新限台灣 IP，轉發主機改建 EC2 台北（簡訊白名單一併更新）
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -640,3 +645,5 @@ changelog:
       Q13 解決；T40 剩 DNS 正式網址切換與正式環境密鑰。
   - date: 2026-10-13
     note: 台新回覆：HTTPS 即時傳輸月費 NT$5,000 → 改走 FTPS 收銷帳檔（轉發主機），新增 T41；企業代碼 96989 確認、來源 IP、補檔機制記入 Q12；網銀不可下載明細，T39 改為 blocked。
+  - date: 2026-10-13
+    note: 台新銷帳檔 sFTP 收檔：migration 0005 bank_files、/api/taishin/file、/api/admin/bank-files、relay/sftp-setup.sh（含轉交程式與每分鐘 timer）、README 安裝與測試步驟；本機端到端測試通過；測試 79 項。

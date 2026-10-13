@@ -12,7 +12,7 @@
 # 會建立（會開始計費，約 US$5／月）：
 #   - Lightsail 主機 storykids-sms-relay（Ubuntu 24.04、最便宜含 IPv4 的方案、啟動時執行 setup.local.sh）
 #   - 固定 IP storykids-sms-relay-ip 並綁到主機
-#   - 防火牆：開 80、443；SSH 22 只允許 Lightsail 瀏覽器 SSH
+#   - 防火牆：開 80、443；SSH 22 只允許 Lightsail 瀏覽器 SSH；2222（台新 sFTP）只允許台新 IP
 #   - （有 --alarm-email 時）主機狀態檢查失敗的 Email 通知
 # =============================================================================
 set -euo pipefail
@@ -91,7 +91,8 @@ STATIC_IP=$(aws_ lightsail get-static-ip --static-ip-name "$IP_NAME" --query sta
 aws_ lightsail put-instance-public-ports --instance-name "$NAME" --port-infos '[
   {"fromPort":80,"toPort":80,"protocol":"tcp","cidrs":["0.0.0.0/0"],"ipv6Cidrs":["::/0"]},
   {"fromPort":443,"toPort":443,"protocol":"tcp","cidrs":["0.0.0.0/0"],"ipv6Cidrs":["::/0"]},
-  {"fromPort":22,"toPort":22,"protocol":"tcp","cidrListAliases":["lightsail-connect"]}
+  {"fromPort":22,"toPort":22,"protocol":"tcp","cidrListAliases":["lightsail-connect"]},
+  {"fromPort":2222,"toPort":2222,"protocol":"tcp","cidrs":["202.6.104.1/32","202.6.104.10/32","122.146.23.10/32","60.244.64.10/32"]}
 ]' >/dev/null
 
 # ---- 當機通知（選填）----

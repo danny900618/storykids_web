@@ -6,6 +6,7 @@ import { authenticateAdmin, sameOrigin } from './auth';
 import { handleAvailability, handleRegister, registrationBlockedReason } from './register';
 import { handleAdmin } from './admin';
 import { handleCmsAuth } from './cms-auth';
+import { handleBankFile } from './bank-files';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -43,8 +44,10 @@ export default {
       // 內容後台（Sveltia CMS）的 GitHub 登入
       if (path.startsWith('/api/cms-auth/') && request.method === 'GET') return await handleCmsAuth(request, env);
 
-      // 台新入帳通知：拿到台新規格書後實作（驗證來源與簽章 → 解密 → reconcile()）
-      if (path === '/api/taishin/notify') return json({ error: '台新入帳通知尚未串接' }, 501);
+      // 台新銷帳檔：台新 sFTP 上傳到轉發主機，主機轉交到這裡（relay/README.md）
+      if (path === '/api/taishin/file' && request.method === 'POST') return await handleBankFile(request, env);
+      // 台新 HTTPS 即時通知：月費 NT$5,000，決定不使用（改走 sFTP 銷帳檔）
+      if (path === '/api/taishin/notify') return json({ error: '未使用' }, 501);
 
       if (path.startsWith('/api/')) return json({ error: '找不到' }, 404);
       return env.ASSETS.fetch(request);

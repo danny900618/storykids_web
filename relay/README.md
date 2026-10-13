@@ -1,4 +1,4 @@
-# 三竹簡訊轉發主機（AWS Lightsail）
+# 轉發主機（AWS Lightsail）：三竹簡訊、台新銷帳檔
 
 三竹的簡訊 API 只接受**白名單內的固定 IP**，Cloudflare Worker 沒有固定 IP（實測連線會被直接丟掉）。
 所以租一台有固定 IP 的小主機，專門把 Worker 的簡訊請求轉給三竹：
@@ -11,6 +11,7 @@ Worker ──HTTPS + 密鑰──→ 轉發主機 sms-relay.storykids.com.tw（�
 |---|---|
 | [Caddyfile](Caddyfile) | 轉發設定：只接受帶密鑰的 `POST /api/mtk/SmSend`、只轉給三竹、自動 HTTPS、不記錄內容 |
 | [setup.sh](setup.sh) | Lightsail 啟動指令碼：開機自動安裝 Caddy、寫入設定、開啟自動安全更新 |
+| [sftp-setup.sh](sftp-setup.sh) | 台新銷帳檔 sFTP 收檔（port 2222）＋每分鐘轉交 Worker（見文末） |
 | [create-lightsail.sh](create-lightsail.sh) | 用 AWS CLI 一次建立主機、固定 IP、防火牆、當機通知（等同網頁操作第 4～6、11 步） |
 
 修改轉發設定時，`Caddyfile` 與 `setup.sh` 內嵌的版本要一起改，`npm run relay:check` 會檢查兩邊是否一致。
@@ -243,3 +244,70 @@ sudo journalctl -u caddy --since today     # 轉發服務紀錄（不含簡訊�
 2. Networking → 把固定 IP 從舊主機 **Detach**，再 **Attach** 到新主機（IP 不變，三竹白名單不用改）（只做 Detach／Attach，**不要 Release**）
 3. 確認 https://sms-relay.storykids.com.tw/healthz 回 `ok`，後台發測試簡訊
 4. 刪除舊主機
+
+---
+
+## 台新銷帳檔 sFTP
+
+台新 HTTPS 即時通知每月 NT$5,000，改由台新以 **sFTP** 上傳銷帳檔到這台主機，主機每分鐘轉交給 Worker：
+
+```
+台新 ──sFTP（52.194.121.120:2222，帳號 taishin，路徑 /upload）──→ 本主機
+本主機 ──HTTPS + 密鑰（TAISHIN_FILE_KEY）──→ 正式環境 Worker /api/taishin/file → D1 bank_files（完整保存原始檔）
+```
+
+- 帳號 `taishin` 只能上傳到 `/upload`：不能登入主機、不能執行指令，也看不到其他檔案
+- 轉交成功的檔案移到 `/var/lib/taishin/processed/`，保留 90 天；失敗的留在原處，下一分鐘重試
+- 同一份檔案重送（台新補檔）只會保存一次
+- 解析與對帳等台新「公版格式」規格書（project.yaml T41）；在那之前檔案都完整保存，不會遺失
+
+### 安裝（一次）
+
+1. **轉交密鑰**：自己電腦產生，設定到正式環境 Worker（存進密碼管理工具，等一下主機也要輸入）
+   ```sh
+   openssl rand -hex 32
+   npx wrangler secret put TAISHIN_FILE_KEY --env production
+   ```
+2. **主機執行安裝**（瀏覽器 SSH，同上方 base64 方式傳檔）
+   ```sh
+   # 自己電腦
+   base64 -b 76 -i relay/sftp-setup.sh | pbcopy
+   # 瀏覽器 SSH：輸入下面這行 → 貼上 → Enter → Ctrl+D，再執行
+   base64 -d | sudo tee /root/sftp-setup.sh > /dev/null
+   sudo bash /root/sftp-setup.sh
+   ```
+   執行時會詢問：`taishin` 的密碼（＝**申請書上的登入密碼**）、Worker 收檔網址（直接 Enter）、轉交密鑰（＝第 1 步）。
+3. **Lightsail 防火牆**：主機 → Networking → IPv4 Firewall → Add rule
+
+   | Application | Protocol | Port | 來源（Restrict to IP address） |
+   |---|---|---|---|
+   | Custom | TCP | **2222** | 202.6.104.1、202.6.104.10、122.146.23.10、60.244.64.10（台新提供；sFTP 來源 IP 以台新確認為準） |
+
+   ⚠️ **不要**開放給所有 IP。自己要測試時，暫時加上自己的 IP，測完刪除。
+
+### 測試（自己電腦，需暫時在防火牆加自己的 IP）
+
+```sh
+echo "test $(date)" > /tmp/ts-test.txt
+sftp -P 2222 taishin@52.194.121.120     # 輸入申請書上的密碼
+sftp> put /tmp/ts-test.txt /upload/
+sftp> bye
+```
+
+約 1～2 分鐘後，正式環境報名後台的操作紀錄會出現「收到銷帳檔」；主機上可查看：
+
+```sh
+sudo journalctl -u taishin-forward --since today   # 轉交紀錄
+sudo ls /srv/sftp/taishin/upload                    # 尚未轉交的檔案（應為空）
+```
+
+測完記得把防火牆上自己的 IP 刪除。
+
+### 維護
+
+| 項目 | 方式 |
+|---|---|
+| 換 sFTP 密碼 | 重新執行 `sudo bash /root/sftp-setup.sh`，詢問時選 y；並向台新申請變更 |
+| 換轉交密鑰 | 同上；Worker 也要 `wrangler secret put TAISHIN_FILE_KEY --env production` |
+| 轉交失敗 | `journalctl -u taishin-forward`：HTTP 403＝密鑰不同；000＝網路或網址錯誤；檔案會留在 upload 直到成功 |
+| 主機重建 | 先跑 setup.sh，再跑 sftp-setup.sh（同樣的密碼與密鑰），固定 IP 改綁新主機 |

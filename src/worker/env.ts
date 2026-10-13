@@ -44,6 +44,9 @@ export interface Env {
   // 三竹只接受固定 IP：經由 AWS Lightsail 轉發主機發送時，MITAKE_API_URL 改為 https://轉發主機網址/api/mtk/SmSend，
   // 並設定與轉發主機相同的密鑰：`wrangler secret put SMS_RELAY_KEY`（relay/README.md）
   SMS_RELAY_KEY?: string;
+  // 台新銷帳檔轉交密鑰：轉發主機把 sFTP 收到的檔案 POST 到 /api/taishin/file 時帶 X-Relay-Key（relay/README.md）
+  // `wrangler secret put TAISHIN_FILE_KEY --env production`；沒設定時一律拒絕
+  TAISHIN_FILE_KEY?: string;
 
   // 後台登入（擇一）：
   // 1. Cloudflare Access（正式建議）：設定 ACCESS_TEAM_DOMAIN 與 ACCESS_AUD

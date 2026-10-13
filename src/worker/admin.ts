@@ -33,6 +33,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
   if (method === 'GET' && path === '/registrations') return json(await queryRegistrations(env, url.searchParams));
   if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams, actor);
   if (method === 'GET' && path === '/audit') return listAudit(env, url.searchParams);
+  if (method === 'GET' && path === '/bank-files') return listBankFiles(env);
 
   const m = path.match(/^\/registrations\/(\d+)(\/[a-z-]+)?$/);
   if (m) {
@@ -352,4 +353,12 @@ async function listAudit(env: Env, params: URLSearchParams): Promise<Response> {
     .all();
   const actors = await env.DB.prepare('SELECT DISTINCT actor FROM audit_log ORDER BY actor').all<{ actor: string }>();
   return json({ items: results, actors: actors.results.map((r) => r.actor) });
+}
+
+// 台新銷帳檔列表（新到舊，不含檔案內容）
+async function listBankFiles(env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare(
+    'SELECT id, filename, sha256, size, received_at, status, note, processed_at FROM bank_files ORDER BY id DESC LIMIT 200',
+  ).all();
+  return json({ items: results });
 }
