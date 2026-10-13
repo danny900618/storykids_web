@@ -519,6 +519,7 @@ tasks:
       啟動指令碼建立時未執行，改以 base64 手動安裝；Caddy active，外部測試 80→HTTPS 轉址正常。
       三竹白名單：新 IP 52.194.121.120 與舊站 IP 一起保留至舊站停用；舊站主機 IP 推定 223.27.34.209（DNS A 記錄，浦莫網路 cPanel），請三竹以發送紀錄確認實際來源 IP。
       2026-10-13 從轉發主機直連三竹（不帶帳密）立即回 statuscode=e（帳密錯誤）→ 東京 IP 連線未被擋（Cloudflare 則逾時）；待以真帳密實測白名單。
+      測試環境 MITAKE_API_URL 先改用臨時網址 https://52-194-121-120.sslip.io/api/mtk/SmSend（Caddy 同時接 sms-relay 與 sslip 網址），DNS 轉過來後兩環境改為 sms-relay.storykids.com.tw。
       待辦：三竹白名單加入 52.194.121.120；DNS 轉到 Cloudflare 後新增 sms-relay（DNS only）；Worker 設定 SMS_RELAY_KEY 與 MITAKE_API_URL；發測試簡訊。
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw

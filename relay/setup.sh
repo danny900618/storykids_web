@@ -11,7 +11,9 @@
 # =============================================================================
 
 # ---- 請填寫 ----
-# 轉發主機的網址（DNS 要指向這台主機的固定 IP）
+# 轉發主機的網址（DNS 要指向這台主機的固定 IP）；可填多個，以「逗號＋空格」分隔
+# DNS 轉到 Cloudflare 前可加臨時網址 <IP 以 - 連接>.sslip.io（自動解析到該 IP），例如：
+#   RELAY_HOST="sms-relay.storykids.com.tw, 52-194-121-120.sslip.io"
 RELAY_HOST="sms-relay.storykids.com.tw"
 # 密鑰：在自己電腦執行 `openssl rand -hex 32` 產生，Worker 的 SMS_RELAY_KEY 要設定成同一組
 RELAY_KEY="請貼上密鑰"
@@ -42,10 +44,11 @@ apt-get install -y caddy
 
 # ---- 設定值（只有 root 與 caddy 可讀）----
 install -m 640 -o root -g caddy /dev/null /etc/caddy/relay.env
+# 值加引號：RELAY_HOST 可以填多個網址（以逗號分隔），systemd 與 bash 都能正確讀取
 cat > /etc/caddy/relay.env <<EOF
-RELAY_HOST=${RELAY_HOST}
-RELAY_KEY=${RELAY_KEY}
-ACME_EMAIL=${ACME_EMAIL}
+RELAY_HOST="${RELAY_HOST}"
+RELAY_KEY="${RELAY_KEY}"
+ACME_EMAIL="${ACME_EMAIL}"
 EOF
 
 mkdir -p /etc/systemd/system/caddy.service.d

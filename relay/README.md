@@ -127,6 +127,24 @@ Lightsail → **Networking** → **Create static IP** → 綁定主機選 `story
 
 把第 5 步的固定 IP 給三竹，請他們加入白名單。
 
+### 7.5 DNS 轉過來之前先測試（臨時網址）
+
+`52-194-121-120.sslip.io` 這種網址會自動解析到 52.194.121.120，不用設 DNS，Caddy 也能替它申請 HTTPS 憑證。
+（公司網路若有 Fortinet 等防火牆，可能擋 sslip.io，只影響自己電腦，Cloudflare 不受影響）
+
+1. 主機（瀏覽器 SSH）：讓 Caddy 同時接正式網址與臨時網址
+   ```sh
+   sudo sed -i 's|^RELAY_HOST=.*|RELAY_HOST="sms-relay.storykids.com.tw, 52-194-121-120.sslip.io"|' /etc/caddy/relay.env
+   sudo systemctl restart caddy
+   sleep 20; curl -s https://52-194-121-120.sslip.io/healthz; echo   # 顯示 ok 代表 HTTPS 憑證已申請成功
+   ```
+2. Worker 測試環境：`wrangler.jsonc` 最上層的 `MITAKE_API_URL` 已設為 `https://52-194-121-120.sslip.io/api/mtk/SmSend`，再設定密鑰：
+   ```sh
+   npx wrangler secret put SMS_RELAY_KEY      # 與 setup.local.sh 的 RELAY_KEY 相同
+   ```
+3. 測試環境報名管理後台 →「發測試簡訊」
+4. DNS 轉過來、第 8 步完成後，兩個環境的 `MITAKE_API_URL` 都改為 `https://sms-relay.storykids.com.tw/api/mtk/SmSend`；主機的臨時網址可以留著或移除
+
 ### 8. DNS（storykids.com.tw 轉到 Cloudflare 之後）
 
 Cloudflare → storykids.com.tw → DNS → Add record：
