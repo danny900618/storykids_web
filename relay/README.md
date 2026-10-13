@@ -11,6 +11,7 @@ Worker ──HTTPS + 密鑰──→ 轉發主機 sms-relay.storykids.com.tw（�
 |---|---|
 | [Caddyfile](Caddyfile) | 轉發設定：只接受帶密鑰的 `POST /api/mtk/SmSend`、只轉給三竹、自動 HTTPS、不記錄內容 |
 | [setup.sh](setup.sh) | Lightsail 啟動指令碼：開機自動安裝 Caddy、寫入設定、開啟自動安全更新 |
+| [create-lightsail.sh](create-lightsail.sh) | 用 AWS CLI 一次建立主機、固定 IP、防火牆、當機通知（等同網頁操作第 4～6、11 步） |
 
 修改轉發設定時，`Caddyfile` 與 `setup.sh` 內嵌的版本要一起改，`npm run relay:check` 會檢查兩邊是否一致。
 
@@ -60,6 +61,15 @@ cp relay/setup.sh relay/setup.local.sh   # setup.local.sh 已列入 .gitignore�
 - `ACME_EMAIL`：補習班信箱
 
 ⚠️ 填好密鑰的檔案**不要 commit、不要貼到聊天或信件**。
+
+### 4～6、11 步也可以用指令一次完成（需要 AWS CLI 設定好補習班帳號的 profile）
+
+```sh
+relay/create-lightsail.sh --profile storykids --alarm-email story698@gmail.com
+```
+
+指令碼會先顯示 AWS 帳號、要求輸入 `yes` 確認，避免建到別的帳號。完成後會印出固定 IP，接著做第 7 步。
+不用指令的話，照下面第 4～6、11 步在網頁上操作：
 
 ### 4. 建立主機
 
