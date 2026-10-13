@@ -28,3 +28,10 @@ old_class/
 
 # 簡訊轉發主機的啟動指令碼（填了密鑰的版本）
 relay/*.local.sh
+
+# 榮譽榜原始名單（含學生全名），遮蔽後才貼到內容後台
+honer.txt
+honer-masked.md
+
+# 與銀行往來的信件
+mail_reply.txt

@@ -282,6 +282,11 @@ open_questions:
       2026-10-12 台新回覆：舊系統目前以「FTPS Passive」接收銷帳檔（台新上傳到舊外包的 FTP 主機），詢問是否改用其他方式。
       回覆方式：即時傳輸（多通道）HTTPS「新增」（啟用日期另行通知）；FTPS「暫不變更」，新系統正式開放報名後再另行申請「終止」，切換期間兩邊並行。
       台新要求：第 4 頁蓋銀行立約章、整份蓋騎縫章、附最新統一編號配賦書（補習班準備）。
+      2026-10-13 台新回覆：HTTPS 即時傳輸（JsonV1.1）每月 NT$5,000（需加填 GB2B 服務費用約定書）→ 決定不用，改走 FTPS 並「變更」接收主機到轉發主機（舊站已無報名，不需並行）。
+      企業代碼 96989 確認；帳號編碼與檢查碼見台新「附件2」（待取得）；帳號公式含帳號＋日期＋金額檢核，但金額仍可能不符而入帳，系統須自行判斷。
+      台新來源 IP（即時傳輸）：202.6.104.1、202.6.104.10、122.146.23.10、60.244.64.10。台新系統或接收異常會補檔；企業網銀「不可下載」入帳明細。
+      送件到完成 5～7 個工作天；啟用日期需確定後才送件；提出申請後啟動測試流程。
+      待問：FTPS 變更是否收費、是否限台灣 IP、FTPS 來源 IP、公版格式規格書與範例檔、最快傳檔頻率、無入帳是否產生檔案、重試與補檔方式。
       企業代碼：舊站 1542 個虛擬帳號皆為 14 碼、共同開頭恰為 96989（第 6～7 碼隨時間遞增 22→41），推定企業代碼 = 96989，申請書填 96989。
       待向台新確認：企業代碼 96989 是否正確、後 9 碼編碼規則與檢查碼算法（payment.ts generateVirtualAccount 目前為假算法）、JsonV1.1 規格書與加密方式／金鑰、台新的來源 IP（Worker 端可驗證）、測試環境（台新測試通知送到測試環境 https://storykids-web.c0981985611.workers.dev/api/taishin/notify，測試資料不進正式資料庫；若台新測試與正式只能同一網址，才改用正式 Worker 的 workers.dev 網址）、
       是否有查詢入帳 API、企業網銀入帳明細的下載格式（供每日對帳補漏）、
@@ -507,7 +512,8 @@ tasks:
     depends_on: [T36]
   - id: T39
     title: 每日對帳補漏：報名後台「上傳對帳檔」（企業網銀下載的入帳明細），逐筆走 reconcile()，補上即時通知漏掉的入帳
-    status: todo
+    status: blocked
+    blocked_reason: 台新回覆企業網銀不可下載入帳明細；改由台新補檔機制處理漏接（2026-10-13）
     depends_on: [Q12]
     notes: 需台新入帳明細範例檔；若台新有查詢入帳 API 則改為排程自動查詢；之後可加「台新每日 Email 明細」由 Email Worker 自動處理
   - id: T40
@@ -524,6 +530,11 @@ tasks:
       2026-10-13 三竹已將 52.194.121.120 加入白名單；測試環境後台「發測試簡訊」成功收到簡訊（Worker → 轉發主機 → 三竹）。
       剩餘：DNS 轉到 Cloudflare 後新增 sms-relay（DNS only），兩個環境 MITAKE_API_URL 改為 https://sms-relay.storykids.com.tw/api/mtk/SmSend；
       正式環境設定 SMS_RELAY_KEY、MITAKE_USERNAME／MITAKE_PASSWORD（--env production）；Lightsail 當機通知（README 第 11 步）。
+  - id: T41
+    title: 台新銀銷帳檔改走 FTPS：轉發主機架 FTPS（只開放台新 IP、TLS、chroot 上傳目錄）→ 收檔後轉交 Worker → 解析公版格式 → reconcile()；虛擬帳號改用附件2 規則
+    status: todo
+    depends_on: [Q12]
+    notes: 需台新附件2（帳號編碼與檢查碼）與 FTPS 公版格式規格書／範例檔；若台新限台灣 IP，轉發主機改建 EC2 台北（簡訊白名單一併更新）
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -627,3 +638,5 @@ changelog:
     note: >
       三竹簡訊打通：Lightsail 東京轉發主機（52.194.121.120）經三竹加入白名單，測試環境（MITAKE_API_URL 暫用 52-194-121-120.sslip.io）後台發測試簡訊成功。
       Q13 解決；T40 剩 DNS 正式網址切換與正式環境密鑰。
+  - date: 2026-10-13
+    note: 台新回覆：HTTPS 即時傳輸月費 NT$5,000 → 改走 FTPS 收銷帳檔（轉發主機），新增 T41；企業代碼 96989 確認、來源 IP、補檔機制記入 Q12；網銀不可下載明細，T39 改為 blocked。
