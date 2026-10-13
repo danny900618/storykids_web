@@ -292,9 +292,10 @@ open_questions:
     question: 三竹簡訊 API 帳號與規格
     owner: 補習班
     phase: phase2
-    status: partial
+    status: resolved
     answer: >
       2026-10-05 已取得帳號密碼；2026-10-12 確認是在「三站」（sms2.mitake.com.tw）登入＝企業帳號，對應 MITAKE_API_URL 的 smsapi.mitake.com.tw（已設定）。
+      2026-10-13 經轉發主機（Lightsail 東京 52.194.121.120，三竹已加白名單）實測發送成功，帳號 HTTP API 已開通。
       尚待：設定 MITAKE_USERNAME／MITAKE_PASSWORD secrets、
       是否已開通 HTTP API、舊系統簡訊是否由此帳號發送（登入三竹後台看發送紀錄）
   - id: Q14
@@ -520,7 +521,9 @@ tasks:
       三竹白名單：新 IP 52.194.121.120 與舊站 IP 一起保留至舊站停用；舊站主機 IP 推定 223.27.34.209（DNS A 記錄，浦莫網路 cPanel），請三竹以發送紀錄確認實際來源 IP。
       2026-10-13 從轉發主機直連三竹（不帶帳密）立即回 statuscode=e（帳密錯誤）→ 東京 IP 連線未被擋（Cloudflare 則逾時）；待以真帳密實測白名單。
       測試環境 MITAKE_API_URL 先改用臨時網址 https://52-194-121-120.sslip.io/api/mtk/SmSend（Caddy 同時接 sms-relay 與 sslip 網址），DNS 轉過來後兩環境改為 sms-relay.storykids.com.tw。
-      待辦：三竹白名單加入 52.194.121.120；DNS 轉到 Cloudflare 後新增 sms-relay（DNS only）；Worker 設定 SMS_RELAY_KEY 與 MITAKE_API_URL；發測試簡訊。
+      2026-10-13 三竹已將 52.194.121.120 加入白名單；測試環境後台「發測試簡訊」成功收到簡訊（Worker → 轉發主機 → 三竹）。
+      剩餘：DNS 轉到 Cloudflare 後新增 sms-relay（DNS only），兩個環境 MITAKE_API_URL 改為 https://sms-relay.storykids.com.tw/api/mtk/SmSend；
+      正式環境設定 SMS_RELAY_KEY、MITAKE_USERNAME／MITAKE_PASSWORD（--env production）；Lightsail 當機通知（README 第 11 步）。
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -620,3 +623,7 @@ changelog:
       三竹需台灣固定 IP，新增簡訊轉發主機（D10、T40）：relay/Caddyfile（只轉發帶密鑰的 POST /api/mtk/SmSend）、relay/setup.sh（Lightsail／EC2 啟動指令碼，
       自動安裝 Caddy、自動 HTTPS、自動安全更新）、relay/README.md（EC2 台北與 Lightsail 安裝步驟、維護與重建）；Worker 支援 SMS_RELAY_KEY 與發送逾時；
       npm run relay:check 檢查設定一致；本機 Caddy 實測通過；測試 73 項。
+  - date: 2026-10-13
+    note: >
+      三竹簡訊打通：Lightsail 東京轉發主機（52.194.121.120）經三竹加入白名單，測試環境（MITAKE_API_URL 暫用 52-194-121-120.sslip.io）後台發測試簡訊成功。
+      Q13 解決；T40 剩 DNS 正式網址切換與正式環境密鑰。
