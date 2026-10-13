@@ -517,6 +517,7 @@ tasks:
       2026-10-13 使用者決定先用 Lightsail 東京（三竹回覆需台灣 IP，若白名單不受理或仍被擋，改建 EC2 台北）。固定 IP 不可在白名單有效時釋放。
       2026-10-13 已建立：Lightsail 東京主機 storykids-sms-relay、靜態 IP 52.194.121.120（AWS ap-northeast-1）、防火牆 80／443 開放、SSH 限瀏覽器 SSH。
       啟動指令碼建立時未執行，改以 base64 手動安裝；Caddy active，外部測試 80→HTTPS 轉址正常。
+      2026-10-13 從轉發主機直連三竹（不帶帳密）立即回 statuscode=e（帳密錯誤）→ 東京 IP 連線未被擋（Cloudflare 則逾時）；待以真帳密實測白名單。
       待辦：三竹白名單加入 52.194.121.120；DNS 轉到 Cloudflare 後新增 sms-relay（DNS only）；Worker 設定 SMS_RELAY_KEY 與 MITAKE_API_URL；發測試簡訊。
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
