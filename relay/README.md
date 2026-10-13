@@ -86,6 +86,24 @@ Lightsail 主控台（https://lightsail.aws.amazon.com）→ **Create instance**
 
 按 **Create instance**，等狀態變成 Running，再等 3～5 分鐘讓安裝跑完。
 
+#### 啟動指令碼沒有執行時（手動安裝）
+
+確認方式：瀏覽器 SSH 執行 `sudo tail -5 /var/log/storykids-relay-setup.log`，出現 No such file 代表沒執行（建立時漏貼）。
+瀏覽器 SSH 貼上中文會變亂碼，所以用 base64 傳送：
+
+```sh
+# 自己電腦（-b 76 切成短行，避免一整行太長被終端機截斷）
+base64 -b 76 -i relay/setup.local.sh | pbcopy
+shasum -a 256 relay/setup.local.sh          # 記下檢查碼
+
+# 瀏覽器 SSH：輸入下面這行 → 貼上 → Enter → Ctrl+D
+base64 -d | sudo tee /root/setup.sh > /dev/null
+sudo sha256sum /root/setup.sh               # 要與上面的檢查碼相同
+sudo bash /root/setup.sh                    # 約 2～4 分鐘，畫面沒有輸出
+systemctl is-active caddy                   # 顯示 active 即成功
+sudo rm /root/setup.sh                      # 刪除含密鑰的暫存檔
+```
+
 ### 5. 固定 IP
 
 Lightsail → **Networking** → **Create static IP** → 綁定主機選 `storykids-sms-relay`，靜態 IP 名稱填 **`storykids-sms-relay-ip`**（不能跟主機同名）→ 建立。記下這個 IP。
