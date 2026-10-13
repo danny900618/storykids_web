@@ -538,7 +538,8 @@ tasks:
       2026-10-13 申請書已填寫（sFTP 新增、FTPS 終止、傳檔每 5 分鐘、公版格式、啟用日期約 2026-10-30）。選 sFTP 而非 FTPS：單一連接埠、不需憑證與 passive 埠段。
       已完成：migration 0005（bank_files 原始檔完整保存、sha256 防重複）、Worker /api/taishin/file（TAISHIN_FILE_KEY，fail closed）、後台 API /api/admin/bank-files、
       relay/sftp-setup.sh（sshd Match chroot、ssh.socket、轉交程式＋systemd timer），本機端到端測試通過；測試 79 項。
-      待辦：主機執行 sftp-setup.sh、Lightsail 防火牆開 2222 給台新 IP、正式環境 TAISHIN_FILE_KEY；取得附件2 與公版格式規格後實作解析與對帳。
+      2026-10-13 主機已執行 sftp-setup.sh、正式環境已設 TAISHIN_FILE_KEY；主機上以 taishin 帳號 sftp 上傳測試檔 → 1 分鐘內轉交 → 正式 D1 bank_files 收到（測試資料已刪除）。
+      待辦：Lightsail 防火牆開 2222 給台新 IP（sFTP 來源 IP 待台新確認）；寄信向台新確認事項後送件；取得附件2 與公版格式規格後實作解析與對帳。
       若台新限台灣 IP，轉發主機改建 EC2 台北（簡訊白名單一併更新）
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
