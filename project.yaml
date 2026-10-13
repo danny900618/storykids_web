@@ -491,7 +491,7 @@ tasks:
     depends_on: [T14, T15]
   # ---- 上線後 ----
   - id: T35
-    title: 上線後驗證（網站、報名、通知、簡訊），通知外包停用舊系統；確認舊信箱改用 Email Routing 後再停舊主機；向台新申請終止舊系統的 FTPS 銷帳檔傳輸
+    title: 上線後驗證（網站、報名、通知、簡訊），通知外包停用舊系統；確認舊信箱改用 Email Routing 後再停舊主機；向台新申請終止舊系統的 FTPS 銷帳檔傳輸；請三竹將舊站 IP（223.27.34.209，浦莫網路 cPanel 主機）從簡訊 API 白名單移除
     status: todo
     depends_on: [T29, T32, Q1, Q7]
 
@@ -517,6 +517,7 @@ tasks:
       2026-10-13 使用者決定先用 Lightsail 東京（三竹回覆需台灣 IP，若白名單不受理或仍被擋，改建 EC2 台北）。固定 IP 不可在白名單有效時釋放。
       2026-10-13 已建立：Lightsail 東京主機 storykids-sms-relay、靜態 IP 52.194.121.120（AWS ap-northeast-1）、防火牆 80／443 開放、SSH 限瀏覽器 SSH。
       啟動指令碼建立時未執行，改以 base64 手動安裝；Caddy active，外部測試 80→HTTPS 轉址正常。
+      三竹白名單：新 IP 52.194.121.120 與舊站 IP 一起保留至舊站停用；舊站主機 IP 推定 223.27.34.209（DNS A 記錄，浦莫網路 cPanel），請三竹以發送紀錄確認實際來源 IP。
       2026-10-13 從轉發主機直連三竹（不帶帳密）立即回 statuscode=e（帳密錯誤）→ 東京 IP 連線未被擋（Cloudflare 則逾時）；待以真帳密實測白名單。
       待辦：三竹白名單加入 52.194.121.120；DNS 轉到 Cloudflare 後新增 sms-relay（DNS only）；Worker 設定 SMS_RELAY_KEY 與 MITAKE_API_URL；發測試簡訊。
   - id: T38
