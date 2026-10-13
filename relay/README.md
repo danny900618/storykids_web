@@ -45,7 +45,7 @@ Worker ──HTTPS + 密鑰──→ 轉發主機 sms-relay.storykids.com.tw（�
 在自己電腦執行，把結果存進密碼管理工具（之後 Worker 也要設定同一組）：
 
 ```sh
-openssl rand -hex 32
+openssl rand -hex 32 #036e3628fc79f71fb821c15d3f85ebebf482a77e398e5079d1827f771b00bc33
 ```
 
 ### 3. 準備啟動指令碼
@@ -65,7 +65,7 @@ cp relay/setup.sh relay/setup.local.sh   # setup.local.sh 已列入 .gitignore�
 ### 4～6、11 步也可以用指令一次完成（需要 AWS CLI 設定好補習班帳號的 profile）
 
 ```sh
-relay/create-lightsail.sh --profile storykids --alarm-email story698@gmail.com
+relay/create-lightsail.sh --profile storykids --alarm-email c0981985611@gmail.com
 ```
 
 指令碼會先顯示 AWS 帳號、要求輸入 `yes` 確認，避免建到別的帳號。完成後會印出固定 IP，接著做第 7 步。
@@ -88,7 +88,8 @@ Lightsail 主控台（https://lightsail.aws.amazon.com）→ **Create instance**
 
 ### 5. 固定 IP
 
-Lightsail → **Networking** → **Create static IP** → 選 `storykids-sms-relay` → 建立。記下這個 IP。
+Lightsail → **Networking** → **Create static IP** → 綁定主機選 `storykids-sms-relay`，靜態 IP 名稱填 **`storykids-sms-relay-ip`**（不能跟主機同名）→ 建立。記下這個 IP。
+一台主機只要一個靜態 IP；建立前先看 Networking 是否已有沒綁定的靜態 IP，有的話直接 Attach，不要重複建立。
 
 ⚠️ 固定 IP **要一直綁在主機上**（免費）；沒綁主機時 AWS 會收費。
 ⚠️ 固定 IP 只要留在帳號裡就**只有我們能用**；一旦 **Release（釋放）**，IP 會回到 AWS 公用池、可能分配給別人。
