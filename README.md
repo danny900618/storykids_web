@@ -256,6 +256,16 @@ npx wrangler secret put ADMIN_PASSWORD --env production   # 暫時的後台密�
 
 新增 `migrations/000X_xxx.sql` → 本機 `npm run db:migrate:local` 測試 → 測試環境 `npm run db:migrate:remote` → 正式環境 `npm run db:migrate:production` → 再 push 程式。
 
+## 資料備份與還原
+
+- **D1 Time Travel**（自動開啟）：可把資料庫還原到 **7 天內**任一分鐘（Workers Paid 為 30 天）。還原會**覆蓋**目前資料，還原後會回傳可復原的 bookmark
+  ```sh
+  npx wrangler d1 time-travel info DB --env production                         # 查看目前 bookmark
+  npx wrangler d1 time-travel restore DB --env production --timestamp=UNIX時間  # 還原到指定時間
+  ```
+- **每月手動匯出**：報名管理後台「匯出 Excel」（來源選「全部（含舊站）」），存到補習班自己的空間，只限負責人存取（含個資）
+- 自動備份（T26）暫緩，正式開放報名後再評估
+
 ## 定期維護清單
 
 | 頻率 | 項目 | 說明 |

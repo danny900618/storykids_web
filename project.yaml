@@ -468,8 +468,11 @@ tasks:
     notes: 選配
   - id: T26
     title: 報名資料定期自動備份（排程匯出 D1 到 R2 或寄到公司信箱）
-    status: todo
-    notes: 選配；目前可手動匯出 Excel 或 wrangler d1 export
+    status: deferred
+    notes: >
+      2026-10-14 決定暫緩：D1 Time Travel 自動開啟，可還原到 7 天內任一分鐘（Workers Paid 為 30 天），已涵蓋大部分誤刪誤改；
+      自動備份到 R2 仍在同一帳號、寄 Email 會傳送個資，效益有限。改為每月由補習班在後台「匯出 Excel」（來源選全部）存到補習班自己的空間。
+      正式開放報名、報名量增加後再評估自動備份或升級 Workers Paid。還原指令：npx wrangler d1 time-travel restore DB --env production --timestamp=UNIX時間
   - id: T27
     title: 檢查簡訊長度（中文 70 字一則），視需要縮短以節省三竹點數
     status: todo
