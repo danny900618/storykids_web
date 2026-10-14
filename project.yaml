@@ -407,8 +407,9 @@ tasks:
     notes: 2026-10-02 完成：D1 storykids（APAC）、migration 0001、secrets ADMIN_PASSWORD／GITHUB_CLIENT_SECRET。正式交付前改用 Cloudflare Access
   - id: T14
     title: 串接台新虛擬帳號（編碼規則、入帳通知 /api/taishin/notify）
-    status: blocked
+    status: in_progress
     depends_on: [Q12, Q14]
+    notes: 2026-10-13 改由 T41 進行（公式 5 帳號已實作；入帳改走 sFTP 銷帳檔，不用 HTTPS 即時通知）。剩台新啟用 sFTP 與測試檔驗證
   - id: T15
     title: 串接三竹簡訊
     status: in_progress
@@ -452,8 +453,9 @@ tasks:
       BREVO_API_KEY 在 Brevo 另產生一組；GITHUB_CLIENT_SECRET 在 OAuth App 另產生一組（上線切換 CMS base_url 時才需要）
   - id: T23
     title: 定時對帳排程（Cron Triggers）架構：每 N 分鐘向台新取得入帳明細 → reconcile()；先接模擬資料，待台新規格補上取得方式
-    status: todo
+    status: cancelled
     depends_on: [Q12]
+    notes: 不需要：台新主動以 sFTP 上傳銷帳檔（每 5 分鐘），收到即對帳（T41）
   - id: T24
     title: 報名管理後台自動刷新（每 30 秒），入帳後狀態自動更新
     status: todo
@@ -553,6 +555,33 @@ tasks:
       後台新增「台新銷帳檔」區塊；優待金額提醒（帳號綁定原金額）。測試 88 項。
       待辦：Lightsail 防火牆開 2222 給台新 IP（sFTP 來源 IP 待台新確認）；寄信向台新確認事項後送件；以台新測試檔驗證實際格式（例如是否有表頭、編碼）。
       若台新限台灣 IP，轉發主機改建 EC2 台北（簡訊白名單一併更新）
+  # ---- 2026-10-14 整理：上線前現在就能做的設定 ----
+  - id: T42
+    title: 正式 Worker（storykids-web-production）在 Cloudflare 後台連結 GitHub 自動部署：Build `npm run build`、Deploy `npx wrangler deploy --env production`、非 main 分支關閉
+    status: todo
+    owner: 開發者
+    notes: 目前正式環境靠手動部署（npm run deploy:production）；未連結前，內容後台存檔不會更新正式網站
+  - id: T43
+    title: 查明測試環境（storykids-web）自動部署失敗原因（2026-10-13 起 push 沒有產生部署），修正後確認 push 會自動部署
+    status: todo
+    owner: 開發者
+    notes: 需到 Cloudflare 後台 Workers & Pages → storykids-web → Deployments／Builds 看建置紀錄；目前以 npx wrangler deploy 手動部署
+  - id: T44
+    title: Turnstile（故事講堂報名）Hostnames 加上正式 Worker 網址 storykids-web-production.c0981985611.workers.dev（上線時再加 storykids.com.tw、www）
+    status: todo
+    owner: 開發者
+  - id: T45
+    title: 正式環境簡訊：設定 SMS_RELAY_KEY、MITAKE_USERNAME、MITAKE_PASSWORD（--env production）；MITAKE_API_URL 先用臨時網址，DNS 切換後改 sms-relay.storykids.com.tw
+    status: todo
+    owner: 開發者
+  - id: T46
+    title: 轉發主機收尾：Lightsail 防火牆開 TCP 2222 只給台新 IP、Status check 當機通知、AWS 根帳號 MFA 與預算通知
+    status: todo
+    owner: 開發者
+  - id: T47
+    title: 補習班內容整理：貼上遮蔽版榮譽榜（honer-masked.md）、處理「116冬令營」課程、確認各課程類別與補課／退費辦法、更新繳費說明頁（Q10）、營業時間（Q9）、照片（Q11）、學生姓名（Q8）
+    status: todo
+    owner: 補習班
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -668,3 +697,5 @@ changelog:
     note: 內容後台內文編輯器新增「插入下載檔案」按鈕（Sveltia 自訂編輯器元件，檔案存 public/files），網站以下載圖示＋粗體顯示。
   - date: 2026-10-14
     note: 網域帳號權限已轉給補習班，但 WHOIS 註冊人仍為魔瓶視覺設計；Q2 改為 partial，待辦註冊人過戶與聯絡人 Email 更新。
+  - date: 2026-10-14
+    note: 整理待辦：T14 改由 T41 進行、T23 取消（台新主動上傳）；新增 T42～T47（正式環境自動部署、測試環境建置失敗、Turnstile、正式簡訊設定、轉發主機收尾、補習班內容整理）。
