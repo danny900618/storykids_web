@@ -718,3 +718,5 @@ changelog:
     note: 報名管理後台列表：預設只顯示新網站報名（舊站資料改由「來源」選擇；有搜尋文字且未選來源時搜尋全部）、每頁 50 筆分頁（API limit／offset、X-Total-Count）；匯出 Excel 不分頁。測試 89 項。
   - date: 2026-10-14
     note: 新增 docs/credentials.md（所有帳號與密鑰的名稱、用途、位置、重新產生方式與連動關係，不含值）與 Bitwarden 匯入範本產生器（npm run credentials:template，輸出已 gitignore）。
+  - date: 2026-10-14
+    note: 開發者已將「一定要存」的帳密（sFTP 密碼、三竹帳密、各服務登入帳密與雙重驗證備用碼）存入密碼管理工具；其餘密鑰遺失時依 docs/credentials.md 重新產生。
