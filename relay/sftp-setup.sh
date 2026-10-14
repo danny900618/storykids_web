@@ -26,7 +26,7 @@ echo "== 1/5 建立 sFTP 帳號與目錄"
 # 帳號不能登入主機（沒有 shell），只能用 sFTP 上傳
 id "$SFTP_USER" >/dev/null 2>&1 || useradd --system --no-create-home --home-dir / --shell /usr/sbin/nologin "$SFTP_USER"
 # chroot 目錄必須屬於 root 且其他人不可寫；台新只能寫入 upload
-mkdir -p "$CHROOT/upload" "$WORK/processed"
+mkdir -p "$CHROOT/upload" "$WORK/processed" "$WORK/empty" "$WORK/rejected"
 chown root:root /srv/sftp "$CHROOT" && chmod 755 /srv/sftp "$CHROOT"
 chown "$SFTP_USER:$SFTP_USER" "$CHROOT/upload" && chmod 750 "$CHROOT/upload"
 chmod 700 "$WORK"
@@ -92,11 +92,15 @@ printf 'TARGET_URL="%s"\n' "$target" > /etc/taishin-forward.env
 # 轉交程式：每分鐘執行，處理上傳完成（60 秒內沒有再變動）的檔案
 cat > /usr/local/bin/taishin-forward <<'SCRIPT'
 #!/bin/bash
-# 把台新上傳的銷帳檔轉交給 Worker；成功才移走，失敗留在原處下次重試
+# 把台新上傳的銷帳檔轉交給 Worker
+#   成功 → processed/；空白檔（沒有入帳的時段）→ empty/；Worker 判定內容有問題（400、413）→ rejected/ 待人工查看
+#   密鑰錯誤（403）、網路或 Worker 暫時異常 → 留在原處，下一分鐘重試
 set -uo pipefail
 source /etc/taishin-forward.env
 IN="/srv/sftp/taishin/upload"
 DONE="/var/lib/taishin/processed"
+EMPTY="/var/lib/taishin/empty"
+REJECTED="/var/lib/taishin/rejected"
 OUT="$(mktemp)"
 trap 'rm -f "$OUT"' EXIT
 shopt -s nullglob
@@ -105,20 +109,31 @@ for f in "$IN"/*; do
   # 上傳中的檔案先跳過：最後修改未滿 60 秒
   (( $(date +%s) - $(stat -c %Y "$f") >= 60 )) || continue
   name="$(basename "$f")"
+  month="$(date +%Y-%m)"
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  # 空白檔：不用轉交，直接移走（避免每分鐘重試、越積越多）
+  if [[ ! -s "$f" ]]; then
+    mkdir -p "$EMPTY/$month" && mv "$f" "$EMPTY/$month/${stamp}-${name}"
+    continue
+  fi
   code=$(curl -sS -o "$OUT" -w '%{http_code}' --max-time 60 -X POST "$TARGET_URL" \
     -H @/etc/taishin-forward.headers -H "X-Filename: ${name}" -H 'Content-Type: application/octet-stream' \
     --data-binary @"$f") || code="000"
   if [[ "$code" == "200" ]]; then
-    dest="$DONE/$(date +%Y-%m)"
-    mkdir -p "$dest"
-    mv "$f" "$dest/$(date +%Y%m%d-%H%M%S)-${name}"
+    mkdir -p "$DONE/$month" && mv "$f" "$DONE/$month/${stamp}-${name}"
     echo "已轉交：${name}（$(head -c 200 "$OUT")）"
+  elif [[ "$code" == "400" || "$code" == "413" ]]; then
+    # 內容有問題，重試也不會成功：移到 rejected 待人工查看
+    mkdir -p "$REJECTED/$month" && mv "$f" "$REJECTED/$month/${stamp}-${name}"
+    echo "⚠️ 檔案被 Worker 拒絕（HTTP ${code}）：${name}，已移到 ${REJECTED}/${month}，請人工查看：$(head -c 200 "$OUT")" >&2
   else
-    echo "轉交失敗：${name}，HTTP ${code}：$(head -c 200 "$OUT")" >&2
+    echo "轉交失敗（稍後重試）：${name}，HTTP ${code}：$(head -c 200 "$OUT")" >&2
   fi
 done
-# 已轉交的檔案在主機上保留 90 天（Worker 資料庫有完整保存）
-find "$DONE" -type f -mtime +90 -delete
+# 主機只是中轉站：已轉交與空白檔保留 90 天後刪除（正式紀錄在 Worker 資料庫 bank_files）；被拒絕的檔案保留 1 年供查看
+find "$DONE" "$EMPTY" -type f -mtime +90 -delete
+find "$REJECTED" -type f -mtime +365 -delete
+find "$DONE" "$EMPTY" "$REJECTED" -mindepth 1 -type d -empty -delete
 SCRIPT
 chmod 700 /usr/local/bin/taishin-forward
 

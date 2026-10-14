@@ -257,7 +257,9 @@ sudo journalctl -u caddy --since today     # 轉發服務紀錄（不含簡訊�
 ```
 
 - 帳號 `taishin` 只能上傳到 `/upload`：不能登入主機、不能執行指令，也看不到其他檔案
-- 轉交成功的檔案移到 `/var/lib/taishin/processed/`，保留 90 天；失敗的留在原處，下一分鐘重試
+- 轉交成功的檔案移到 `/var/lib/taishin/processed/`；**空白檔**（沒有入帳的時段）移到 `empty/`；兩者保留 90 天後自動刪除
+- 主機只是中轉站，**正式紀錄在 Worker 資料庫**（`bank_files` 原始檔＋`payment_events` 每筆入帳），長期保存（會計憑證一般保存 5 年）
+- Worker 判定內容有問題（HTTP 400、413）→ 移到 `rejected/` 待人工查看（保留 1 年）；密鑰錯誤（403）或網路異常 → 留在原處，下一分鐘重試
 - 同一份檔案重送（台新補檔）只會保存一次
 - 解析與對帳等台新「公版格式」規格書（project.yaml T41）；在那之前檔案都完整保存，不會遺失
 
@@ -310,4 +312,6 @@ sudo ls /srv/sftp/taishin/upload                    # 尚未轉交的檔案（�
 | 換 sFTP 密碼 | 重新執行 `sudo bash /root/sftp-setup.sh`，詢問時選 y；並向台新申請變更 |
 | 換轉交密鑰 | 同上；Worker 也要 `wrangler secret put TAISHIN_FILE_KEY --env production` |
 | 轉交失敗 | `journalctl -u taishin-forward`：HTTP 403＝密鑰不同；000＝網路或網址錯誤；檔案會留在 upload 直到成功 |
+| 更新轉交程式 | 重新執行 `sudo bash /root/sftp-setup.sh`：密碼選 N、網址按 Enter、密鑰選 N（只更新程式，不改密碼與密鑰） |
+| 被拒絕的檔案 | `sudo ls -R /var/lib/taishin/rejected`，把檔案內容與 journalctl 訊息提供給開發者 |
 | 主機重建 | 先跑 setup.sh，再跑 sftp-setup.sh（同樣的密碼與密鑰），固定 IP 改綁新主機 |
