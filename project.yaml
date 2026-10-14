@@ -597,7 +597,8 @@ tasks:
     owner: 補習班
   - id: T48
     title: UptimeRobot 外部監測（免費，每 5 分鐘）：正式網站首頁、報名系統 API（/api/public-config 關鍵字 turnstile_site_key）、轉發主機 /healthz（關鍵字 ok）、網域到期；通知開發者與補習班負責人
-    status: todo
+    status: in_progress
+    progress: 2026-10-14 已建立 3 個 Website monitor（GET）：正式網站、報名系統 API、轉發主機；網域到期待上線改用 storykids.com.tw 時在監測 1 開啟
     owner: 開發者
     notes: >
       首頁是靜態檔不計 Workers 額度；API 每天 288 次（不碰 D1）、轉發主機不經 Cloudflare，額度影響可忽略。不監測 sFTP 2222（只開放台新 IP，會誤報）。
