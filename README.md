@@ -206,7 +206,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 報名管理後台頁首會顯示「測試環境」（藍）或「正式環境」（綠）。內容後台 `/cms` 兩邊共用：存檔 commit 到 `main` 後兩邊都會重新部署。
 
-push 到 `main` 後，Cloudflare Workers Builds 會自動建置並部署兩個 Worker（各自在 Cloudflare 後台連結 GitHub repo）：
+push 到 `main` 後，Cloudflare Workers Builds 會自動建置並部署兩個 Worker（各自在 Cloudflare 後台連結 GitHub repo，2026-10-14 兩邊皆已設定完成）：
 
 | Worker | Build command | Deploy command | 非 main 分支 |
 |---|---|---|---|

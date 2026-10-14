@@ -558,14 +558,14 @@ tasks:
   # ---- 2026-10-14 整理：上線前現在就能做的設定 ----
   - id: T42
     title: 正式 Worker（storykids-web-production）在 Cloudflare 後台連結 GitHub 自動部署：Build `npm run build`、Deploy `npx wrangler deploy --env production`、非 main 分支關閉
-    status: todo
+    status: done
     owner: 開發者
-    notes: 目前正式環境靠手動部署（npm run deploy:production）；未連結前，內容後台存檔不會更新正式網站
+    notes: 2026-10-14 完成：push 後正式環境自動部署，且使用 env.production 設定（正式網址 /api/public-config 顯示暫停報名）
   - id: T43
     title: 查明測試環境（storykids-web）自動部署失敗原因（2026-10-13 起 push 沒有產生部署），修正後確認 push 會自動部署
-    status: todo
+    status: done
     owner: 開發者
-    notes: 需到 Cloudflare 後台 Workers & Pages → storykids-web → Deployments／Builds 看建置紀錄；目前以 npx wrangler deploy 手動部署
+    notes: 2026-10-14 確認恢復：push 後測試環境自動部署（2026-10-13 那次未部署應為暫時性問題）；若再發生，到 Cloudflare 後台 Deployments／Builds 看建置紀錄
   - id: T44
     title: Turnstile（故事講堂報名）Hostnames 加上正式 Worker 網址 storykids-web-production.c0981985611.workers.dev（上線時再加 storykids.com.tw、www）
     status: todo
