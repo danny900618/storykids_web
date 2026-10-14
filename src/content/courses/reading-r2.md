@@ -30,7 +30,7 @@ question: 歡迎加入「故事講堂-Line官方帳號」詢問
 phone: 04-23196868
 location: 故事講堂
 sessions: []
-featured: true
+featured: false
 published: true
 order: 2
 registration_url: ''
