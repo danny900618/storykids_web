@@ -475,8 +475,11 @@ tasks:
       正式開放報名、報名量增加後再評估自動備份或升級 Workers Paid。還原指令：npx wrangler d1 time-travel restore DB --env production --timestamp=UNIX時間
   - id: T27
     title: 檢查簡訊長度（中文 70 字一則），視需要縮短以節省三竹點數
-    status: todo
+    status: deferred
     depends_on: [T15]
+    notes: >
+      2026-10-14 實算：報名成功 88～106 字、遞補正取 80～98 字（各 2 點，含 14 碼帳號、金額、期限、課程名稱）；候補登記 45～63 字、繳費完成 44～62 字（各 1 點）。
+      每筆報名多 1 點、影響小，使用者決定先不改；要省點數時可拿掉簡訊中的課程名稱（Email 仍有完整資訊）
   # ---- 上線當天清單（DNS 切換後依序執行，見 README） ----
   - id: T28
     title: Cloudflare 加入 storykids.com.tw、逐筆核對舊 DNS 紀錄（context.domain.records_to_copy）、全部 DNS only
