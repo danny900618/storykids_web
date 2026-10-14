@@ -67,4 +67,13 @@
   .prose-story p:has(> img + img) > img {
     @apply m-0 aspect-[4/3] w-full object-cover;
   }
+  /* 內容後台「插入下載檔案」產生的連結：前面加下載圖示，粗體顯示 */
+  .prose-story a[data-download-link] {
+    @apply inline-flex items-center gap-1.5 font-bold;
+  }
+  .prose-story a[data-download-link]::before {
+    content: '';
+    @apply inline-block size-[1.1em] shrink-0 bg-current;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
 }
