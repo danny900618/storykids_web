@@ -183,6 +183,19 @@ describe('後台操作', () => {
     expect(rows[2].legacy_term).toBe('114夏令營');
   });
 
+  it('報名列表分頁：limit／offset，總筆數在 X-Total-Count；篩選條件同時套用在筆數', async () => {
+    for (let i = 0; i < 5; i++) await register('two-seats');
+    const res = await call(adminRequest('/api/admin/registrations?limit=2&offset=0'));
+    expect(res.headers.get('X-Total-Count')).toBe('5');
+    const first = (await res.json()) as { id: number }[];
+    expect(first).toHaveLength(2);
+    const second = (await (await call(adminRequest('/api/admin/registrations?limit=2&offset=2'))).json()) as { id: number }[];
+    expect(second).toHaveLength(2);
+    expect(second[0].id).toBeLessThan(first[1].id);
+    const filtered = await call(adminRequest('/api/admin/registrations?limit=2&admission=正取'));
+    expect(filtered.headers.get('X-Total-Count')).toBe('2');
+  });
+
   it('操作紀錄需要登入', async () => {
     expect((await call(new Request(`${ORIGIN}/api/admin/audit`))).status).toBe(401);
   });

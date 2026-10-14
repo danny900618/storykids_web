@@ -30,7 +30,7 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
   if (method === 'POST' && path === '/test-email') return testEmail(request, env, actor);
   if (method === 'POST' && path === '/test-sms') return testSms(request, env, actor);
   if (method === 'GET' && path === '/sessions') return listSessions(request, env);
-  if (method === 'GET' && path === '/registrations') return json(await queryRegistrations(env, url.searchParams));
+  if (method === 'GET' && path === '/registrations') return listRegistrations(env, url.searchParams);
   if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams, actor);
   if (method === 'GET' && path === '/audit') return listAudit(env, url.searchParams);
   if (method === 'GET' && path === '/bank-files') return listBankFiles(env);
@@ -64,7 +64,30 @@ async function listSessions(request: Request, env: Env): Promise<Response> {
   });
 }
 
-async function queryRegistrations(env: Env, params: URLSearchParams): Promise<(Registration & { expired: boolean })[]> {
+// 報名列表（分頁）：limit／offset；總筆數放在 X-Total-Count（回應本體維持陣列）
+async function listRegistrations(env: Env, params: URLSearchParams): Promise<Response> {
+  const limit = Math.min(Math.max(Number(params.get('limit')) || 3000, 1), 3000);
+  const offset = Math.max(Number(params.get('offset')) || 0, 0);
+  const { where, binds } = registrationFilters(params);
+  const [rows, total] = await Promise.all([
+    queryRegistrations(env, params, limit, offset),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`).bind(...binds).first<{ n: number }>(),
+  ]);
+  return json(rows, 200, { 'X-Total-Count': String(total?.n ?? rows.length) });
+}
+
+async function queryRegistrations(env: Env, params: URLSearchParams, limit = 3000, offset = 0): Promise<(Registration & { expired: boolean })[]> {
+  const { where, binds } = registrationFilters(params);
+  // 排序：新網站的報名在最上面（最新的在前），舊站匯入的資料排在後面（依上課日期新到舊）
+  // 不能只用 id 排序：舊站資料是後來才匯入的，id 比匯入前的報名大
+  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+    ORDER BY (legacy_term IS NOT NULL), created_at DESC, id DESC LIMIT ? OFFSET ?`;
+  const { results } = await env.DB.prepare(sql).bind(...binds, limit, offset).all<Registration>();
+  return results.map((r) => ({ ...r, expired: isExpired(r) }));
+}
+
+// 篩選條件（列表、筆數、匯出共用）
+function registrationFilters(params: URLSearchParams): { where: string[]; binds: unknown[] } {
   const where: string[] = [];
   const binds: unknown[] = [];
   const session = params.get('session');
@@ -87,12 +110,7 @@ async function queryRegistrations(env: Env, params: URLSearchParams): Promise<(R
     const like = `%${q}%`;
     binds.push(like, like, like, like, like, like, like, like, like, q);
   }
-  // 排序：新網站的報名在最上面（最新的在前），舊站匯入的資料排在後面（依上課日期新到舊）
-  // 不能只用 id 排序：舊站資料是後來才匯入的，id 比匯入前的報名大
-  const sql = `SELECT * FROM registrations ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY (legacy_term IS NOT NULL), created_at DESC, id DESC LIMIT 3000`;
-  const { results } = await env.DB.prepare(sql).bind(...binds).all<Registration>();
-  return results.map((r) => ({ ...r, expired: isExpired(r) }));
+  return { where, binds };
 }
 
 // 修改狀態 / 正取候補

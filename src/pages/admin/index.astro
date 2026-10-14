@@ -42,7 +42,7 @@ import '../../styles/global.css';
         <form id="filters" class="flex flex-wrap items-end gap-3">
           <label class="text-sm">來源
             <select name="source" class="mt-1 block rounded-lg border border-black/15 px-3 py-2">
-              <option value="">全部</option><option value="new">新網站報名</option><option value="legacy">舊站匯入</option>
+              <option value="new" selected>新網站報名</option><option value="">全部（含舊站）</option><option value="legacy">舊站匯入</option>
             </select>
           </label>
           <label class="text-sm">舊站梯次
@@ -81,6 +81,14 @@ import '../../styles/global.css';
           <tbody id="rows" class="divide-y divide-black/5"></tbody>
         </table>
         <p id="empty" class="hidden p-8 text-center text-ink-500">沒有符合條件的報名</p>
+        <!-- 分頁：每頁 50 筆（匯出 Excel 不受分頁限制，會包含所有符合條件的資料） -->
+        <div id="pager" class="flex flex-wrap items-center justify-between gap-3 border-t border-black/5 px-4 py-3 text-sm">
+          <span id="pager-info" class="text-ink-500"></span>
+          <div class="flex gap-2">
+            <button type="button" id="page-prev" class="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-40">上一頁</button>
+            <button type="button" id="page-next" class="rounded-lg border border-black/15 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-40">下一頁</button>
+          </div>
+        </div>
       </section>
 
       <!-- 台新銷帳檔：台新 sFTP 上傳後自動轉交、解析與對帳 -->
@@ -181,7 +189,15 @@ import '../../styles/global.css';
         return data as T;
       }
 
-      const query = () => new URLSearchParams(Object.entries(Object.fromEntries(new FormData(filters))).filter(([, v]) => v) as [string, string][]);
+      // 篩選條件。來源預設「新網站報名」；有輸入搜尋文字、且沒有特別選來源時，搜尋全部（含舊站），才找得到舊站學生
+      let sourceTouched = false;
+      const query = () => {
+        const params = new URLSearchParams(Object.entries(Object.fromEntries(new FormData(filters))).filter(([, v]) => v) as [string, string][]);
+        if (params.get('q') && !sourceTouched && params.get('source') === 'new') params.delete('source');
+        return params;
+      };
+      const PAGE_SIZE = 50;
+      let page = 0;
 
       async function loadSessions() {
         const { sessions, orphans, legacy_terms } = await api<{ sessions: SessionInfo[]; orphans: string[]; legacy_terms: { term: string; n: number }[] }>('/sessions');
@@ -230,12 +246,34 @@ import '../../styles/global.css';
       }
 
       async function loadRows() {
-        const rows = await api<Reg[]>(`/registrations?${query()}`);
+        const params = query();
+        params.set('limit', String(PAGE_SIZE));
+        params.set('offset', String(page * PAGE_SIZE));
+        const res = await fetch(`/api/admin/registrations?${params}`);
+        if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || `錯誤 ${res.status}`);
+        const rows = (await res.json()) as Reg[];
+        const total = Number(res.headers.get('X-Total-Count') ?? rows.length);
+        // 資料變少（例如篩選後）導致目前頁數超出範圍時，回到最後一頁
+        if (rows.length === 0 && page > 0 && total > 0) {
+          page = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+          return loadRows();
+        }
         currentRows = new Map(rows.map((r) => [r.id, r]));
         $('rows').innerHTML = rows.map(row).join('');
         $('empty').classList.toggle('hidden', rows.length > 0);
-        $('count').textContent = `共 ${rows.length} 筆`;
+        $('count').textContent = `共 ${total} 筆`;
+        const from = total ? page * PAGE_SIZE + 1 : 0;
+        $('pager-info').textContent = total ? `第 ${from}–${page * PAGE_SIZE + rows.length} 筆，共 ${total} 筆` : '';
+        $<HTMLButtonElement>('page-prev').disabled = page === 0;
+        $<HTMLButtonElement>('page-next').disabled = (page + 1) * PAGE_SIZE >= total;
       }
+      const goPage = (p: number) => {
+        page = p;
+        loadRows().catch((e) => alert(e.message));
+        document.querySelector('#rows')?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      $('page-prev').addEventListener('click', () => goPage(Math.max(0, page - 1)));
+      $('page-next').addEventListener('click', () => goPage(page + 1));
 
       // 台新銷帳檔（最近 20 筆）
       async function loadBankFiles() {
@@ -349,7 +387,7 @@ import '../../styles/global.css';
         if (el.dataset.history) showHistory(el.dataset.history);
         if (el.dataset.filterSession !== undefined) {
           (filters.elements.namedItem('session') as HTMLSelectElement).value = el.dataset.filterSession;
-          loadRows();
+          goPage(0);
         }
         if (el.dataset.close !== undefined) $<HTMLDialogElement>('history').close();
       });
@@ -483,8 +521,11 @@ import '../../styles/global.css';
 
       filters.addEventListener('submit', (e) => {
         e.preventDefault();
-        loadRows();
+        goPage(0);
       });
+      // 改了來源就照使用者選的；改任何篩選都回到第一頁
+      (filters.elements.namedItem('source') as HTMLSelectElement).addEventListener('change', () => (sourceTouched = true));
+      filters.addEventListener('change', () => goPage(0));
       $('export').addEventListener('click', () => (location.href = `/api/admin/export.csv?${query()}`));
 
       // 發測試簡訊：確認三竹串接（會真的發出並扣點數）
