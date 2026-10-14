@@ -571,8 +571,11 @@ tasks:
     notes: 2026-10-14 確認恢復：push 後測試環境自動部署（2026-10-13 那次未部署應為暫時性問題）；若再發生，到 Cloudflare 後台 Deployments／Builds 看建置紀錄
   - id: T44
     title: Turnstile（故事講堂報名）Hostnames 加上正式 Worker 網址 storykids-web-production.c0981985611.workers.dev（上線時再加 storykids.com.tw、www）
-    status: todo
+    status: in_progress
     owner: 開發者
+    notes: >
+      2026-10-14 已加正式 Worker 網址。Hostname 會涵蓋其所有子網域，所以只要再加 storykids.com.tw（含 www），建議上線前先加；
+      免費方案每個 widget 最多 10 個 hostname
   - id: T45
     title: 正式環境簡訊：設定 SMS_RELAY_KEY、MITAKE_USERNAME、MITAKE_PASSWORD（--env production）；MITAKE_API_URL 先用臨時網址，DNS 切換後改 sms-relay.storykids.com.tw
     status: todo
