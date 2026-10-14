@@ -54,7 +54,7 @@ sessions:
     open: true
 featured: true
 published: true
-order: 1
+order: 10
 registration_url: ''
 ---
 
