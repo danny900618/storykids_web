@@ -587,7 +587,8 @@ tasks:
     status: todo
     depends_on: [T29]
     notes: 若台新測試時使用了正式 Worker 的 workers.dev 網址，要等台新改送 storykids.com.tw 後才關閉
-    notes: 測試環境的 workers.dev 網址保留給補習班練習與測試
+    notes: 測試環境的 workers.dev 網址保留給補習班練習與測試；關閉正式 workers.dev 前，先確認內容沒有寫死的測試網址：grep -rl 'workers.dev' src/content（2026-10-14 為 0）。
+      內容後台「媒體 → 複製 → 公開 URL」會帶 site_url（目前為測試網址），插入連結請用「插入下載檔案」按鈕或只貼 /images/… 相對路徑
 
 # -----------------------------------------------------------------------------
 # 變更紀錄

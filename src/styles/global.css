@@ -67,9 +67,14 @@
   .prose-story p:has(> img + img) > img {
     @apply m-0 aspect-[4/3] w-full object-cover;
   }
-  /* 內容後台「插入下載檔案」產生的連結：前面加下載圖示，粗體顯示 */
+  /* 內容後台「插入下載檔案」產生的連結：前面加下載圖示，粗體顯示
+     每個下載連結自成一行（就算在編輯器裡接在其他文字或連結後面，也不會擠在一起） */
   .prose-story a[data-download-link] {
-    @apply inline-flex items-center gap-1.5 font-bold;
+    @apply my-1 flex w-fit items-center gap-1.5 font-bold;
+  }
+  /* 刪除內容後留下的空白項目符號不顯示 */
+  .prose-story li:empty {
+    @apply hidden;
   }
   .prose-story a[data-download-link]::before {
     content: '';
