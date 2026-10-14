@@ -19,6 +19,10 @@ import '../../styles/global.css';
         <span id="env-badge" class="hidden rounded-full px-3 py-1 text-xs font-bold"></span>
         <span id="mode-badge" class="hidden rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800"></span>
         <div class="ml-auto flex flex-wrap items-center gap-3 text-sm">
+          <!-- 資料新鮮度：每 60 秒自動更新（切到別的分頁時暫停）；台新資料約每 5 分鐘進來一次 -->
+          <span id="bank-freshness" class="text-xs text-ink-500"></span>
+          <span id="last-refresh" class="text-xs text-ink-500"></span>
+          <button type="button" id="refresh-now" class="rounded-lg bg-brand-600 px-3 py-1 font-bold text-white hover:bg-brand-700 disabled:opacity-60">重新整理</button>
           <span id="actor" class="text-ink-500"></span>
           <span id="sms-points" class="hidden text-ink-500"></span>
           <button type="button" id="test-email" class="rounded-lg border border-black/15 px-3 py-1 hover:bg-slate-100">寄測試信</button>
@@ -236,6 +240,15 @@ import '../../styles/global.css';
       // 台新銷帳檔（最近 20 筆）
       async function loadBankFiles() {
         const { items } = await api<{ items: { id: number; filename: string; received_at: string; status: string; note: string | null }[] }>('/bank-files');
+        // 頁首顯示最近一次收到台新資料的時間，久沒收到時可以早點發現問題
+        const latest = items[0]?.received_at;
+        if (latest) {
+          const mins = Math.floor((Date.now() - new Date(latest).getTime()) / 60_000);
+          const ago = mins < 1 ? '剛剛' : mins < 60 ? `${mins} 分鐘前` : mins < 1440 ? `${Math.floor(mins / 60)} 小時前` : `${Math.floor(mins / 1440)} 天前`;
+          $('bank-freshness').textContent = `台新資料：最近一次 ${tw(latest)}（${ago}）`;
+        } else {
+          $('bank-freshness').textContent = '台新資料：尚未收到';
+        }
         const label: Record<string, string> = { parsed: '已對帳', failed: '⚠️ 有無法辨識的內容', pending: '待處理' };
         $('bank-rows').innerHTML = items.length
           ? items.slice(0, 20).map((f) => `<tr class="align-top">
@@ -246,7 +259,43 @@ import '../../styles/global.css';
           : '<tr><td colspan="4" class="px-3 py-6 text-center text-ink-500">尚未收到銀行銷帳檔</td></tr>';
       }
 
-      const refresh = () => Promise.all([loadSessions(), loadRows(), loadAudit(), loadBankFiles()]).catch((e) => alert(e.message));
+      // ---- 重新整理 ----
+      // 手動（按鈕、操作後）：全部更新；自動（每 60 秒）：只更新報名列表與銷帳檔，不重設已「載入更多」的操作紀錄
+      // 自動更新會略過：分頁在背景、開著編輯／紀錄視窗、正在選下拉選單或輸入文字時（避免畫面突然跳掉）
+      const AUTO_REFRESH_MS = 60_000;
+      let lastRefresh = 0;
+      let refreshing = false;
+      async function load(full: boolean) {
+        if (refreshing) return;
+        refreshing = true;
+        $<HTMLButtonElement>('refresh-now').disabled = true;
+        try {
+          await Promise.all([loadSessions(), loadRows(), loadBankFiles(), ...(full ? [loadAudit()] : [])]);
+          lastRefresh = Date.now();
+          $('last-refresh').textContent = `最後更新 ${new Date().toLocaleTimeString('zh-TW', { hour12: false })}`;
+          $('last-refresh').classList.remove('text-red-600');
+        } catch (e) {
+          if (full) alert((e as Error).message);
+          $('last-refresh').textContent = '更新失敗，稍後自動重試';
+          $('last-refresh').classList.add('text-red-600');
+        } finally {
+          refreshing = false;
+          $<HTMLButtonElement>('refresh-now').disabled = false;
+        }
+      }
+      const refresh = () => load(true);
+      const busy = () => {
+        const el = document.activeElement;
+        return !!document.querySelector('dialog[open]') || (!!el && ['SELECT', 'INPUT', 'TEXTAREA'].includes(el.tagName));
+      };
+      setInterval(() => {
+        if (document.visibilityState === 'visible' && !busy() && Date.now() - lastRefresh >= AUTO_REFRESH_MS) load(false);
+      }, 5_000);
+      // 從別的分頁切回來時，超過 60 秒沒更新就立刻更新
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !busy() && Date.now() - lastRefresh >= AUTO_REFRESH_MS) load(false);
+      });
+      $('refresh-now').addEventListener('click', () => refresh());
 
       async function update(id: string, body: Record<string, string>, confirmText?: string) {
         if (confirmText && !confirm(confirmText)) return refresh();
