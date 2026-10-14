@@ -578,7 +578,8 @@ tasks:
       免費方案每個 widget 最多 10 個 hostname
   - id: T45
     title: 正式環境簡訊：設定 SMS_RELAY_KEY、MITAKE_USERNAME、MITAKE_PASSWORD（--env production）；MITAKE_API_URL 先用臨時網址，DNS 切換後改 sms-relay.storykids.com.tw
-    status: todo
+    status: done
+    notes: 2026-10-14 三個密鑰已設定；正式 MITAKE_API_URL 改為臨時網址 https://52-194-121-120.sslip.io/api/mtk/SmSend（SMS_MODE 仍為 mock）。DNS 切換後兩環境改 sms-relay（T40）
     owner: 開發者
   - id: T46
     title: 轉發主機收尾：Lightsail 防火牆開 TCP 2222 只給台新 IP、Status check 當機通知、AWS 根帳號 MFA 與預算通知
