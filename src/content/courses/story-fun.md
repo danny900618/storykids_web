@@ -52,8 +52,8 @@ sessions:
     capacity: 1
     price: 11000
     open: true
-featured: true
-published: true
+featured: false
+published: false
 order: 10
 registration_url: ''
 ---
