@@ -2,6 +2,7 @@
 import type { Env, Registration } from './env';
 import { LEGACY_PREFIX, STATUSES, formatTw, isExpired, json, nowIso, paymentDeadline } from './env';
 import { PROFILE_LABELS, readProfile, validateProfile } from './profile';
+import { checkHealth } from './health';
 import { countBySession, findSession, loadSessions } from './sessions';
 import { PAID_STATUSES, generateVirtualAccount, reconcile } from './payment';
 import { notifyPromoted, parseAddress, sendTestEmail, sendTestSms } from './notify';
@@ -34,6 +35,8 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
   if (method === 'GET' && path === '/export.csv') return exportCsv(env, url.searchParams, actor);
   if (method === 'GET' && path === '/audit') return listAudit(env, url.searchParams);
   if (method === 'GET' && path === '/bank-files') return listBankFiles(env);
+  // 系統健康檢查（不寄信，只回傳目前的問題）
+  if (method === 'GET' && path === '/health') return json({ issues: await checkHealth(env) });
 
   const m = path.match(/^\/registrations\/(\d+)(\/[a-z-]+)?$/);
   if (m) {

@@ -17,6 +17,7 @@
   - 名額判斷與寫入必須在同一個 SQL 指令完成（見 `register.ts`），避免併發超收。
   - 對帳一律走 `payment.ts` 的 `reconcile()`（台新入帳通知與模擬入帳共用），以交易序號 `ref` 防止重複入帳。
   - 後台 API 一律經過 `auth.ts` 驗證；沒有設定任何登入方式時必須拒絕存取（fail closed）。
+  - 系統健康檢查在 `health.ts`（正式環境 Cron 每小時，有問題寄信給 `HEALTH_ALERT_TO`）；新增會影響服務的額度或外部依賴時，考慮加進檢查。
   - 金流、簡訊、Email 由 `*_MODE` 環境變數控制，`mock` 為測試模式（不對外發送）。
   - 台新銷帳檔：台新 sFTP 上傳到轉發主機，主機轉交到 `/api/taishin/file`（`bank-files.ts`，需 `TAISHIN_FILE_KEY`），原始檔保存在 D1 `bank_files`；解析後一律走 `reconcile()`。
   - 虛擬帳號依台新公式 5（`taishin.ts`）：截止日與金額編在帳號裡，改期限（例如遞補）要重新產生帳號；測試模式檢查碼故意錯誤。

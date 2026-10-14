@@ -89,8 +89,13 @@
         { "name": "REGISTER_LIMITER", "namespace_id": "2001", "simple": { "limit": 5, "period": 60 } },
         { "name": "LOGIN_LIMITER", "namespace_id": "2002", "simple": { "limit": 10, "period": 60 } }
       ],
+      // 系統健康檢查（src/worker/health.ts）：每小時一次，有問題才寄信（同一問題 24 小時內只寄一次）；測試環境不設定
+      "triggers": { "crons": ["0 * * * *"] },
       "vars": {
         "ENV_LABEL": "正式環境",
+        // 健康檢查警告的收件人與寄件人（寄件網域驗證完成前，寄件人用 Brevo 已驗證的信箱）
+        "HEALTH_ALERT_TO": "c0981985611@gmail.com,story698@gmail.com",
+        "HEALTH_ALERT_FROM": "故事講堂系統通知 <c0981985611@gmail.com>",
         // 正式機的 workers.dev 網址也列入：金流正式串接（PAYMENT_MODE=live）前，正式機一律不開放報名
         "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw,storykids-web-production.c0981985611.workers.dev",
         "TURNSTILE_SITE_KEY": "0x4AAAAAAFN4uNb2C_uM5LaQ",

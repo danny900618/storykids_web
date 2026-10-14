@@ -7,6 +7,7 @@ import { handleAvailability, handleRegister, registrationBlockedReason } from '.
 import { handleAdmin } from './admin';
 import { handleCmsAuth } from './cms-auth';
 import { handleBankFile } from './bank-files';
+import { runHealthCheck } from './health';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -55,5 +56,10 @@ export default {
       console.error(err);
       return json({ error: '系統忙碌中，請稍後再試' }, 500);
     }
+  },
+
+  // 排程（wrangler.jsonc 的 triggers.crons，只設定在正式環境）：系統健康檢查
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runHealthCheck(env).then((r) => console.log('健康檢查', JSON.stringify(r))).catch((err) => console.error('健康檢查失敗', err)));
   },
 } satisfies ExportedHandler<Env>;

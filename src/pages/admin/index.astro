@@ -34,6 +34,9 @@ import '../../styles/global.css';
     </header>
 
     <main class="mx-auto max-w-[1400px] space-y-6 px-4 py-6">
+      <!-- 系統健康檢查：有問題時顯示（正式環境每小時也會寄信通知） -->
+      <div id="health" class="hidden space-y-1 rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200"></div>
+
       <!-- CMS 已刪除但仍有報名的時段 -->
       <p id="orphans" class="hidden rounded-xl bg-red-50 p-3 text-sm text-red-700"></p>
 
@@ -322,6 +325,17 @@ import '../../styles/global.css';
         }
       }
       const refresh = () => load(true);
+
+      // 系統健康檢查（頁面開啟與按「重新整理」時）
+      async function loadHealth() {
+        try {
+          const { issues } = await api<{ issues: { level: string; message: string }[] }>('/health');
+          $('health').innerHTML = issues.map((i) => `<p>${i.level === 'error' ? '🔴' : '🟡'} ${esc(i.message)}</p>`).join('');
+          $('health').classList.toggle('hidden', issues.length === 0);
+        } catch {
+          // 檢查失敗不影響後台使用
+        }
+      }
       const busy = () => {
         const el = document.activeElement;
         return !!document.querySelector('dialog[open]') || (!!el && ['SELECT', 'INPUT', 'TEXTAREA'].includes(el.tagName));
@@ -333,7 +347,10 @@ import '../../styles/global.css';
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && !busy() && Date.now() - lastRefresh >= AUTO_REFRESH_MS) load(false);
       });
-      $('refresh-now').addEventListener('click', () => refresh());
+      $('refresh-now').addEventListener('click', () => {
+        refresh();
+        loadHealth();
+      });
 
       async function update(id: string, body: Record<string, string>, confirmText?: string) {
         if (confirmText && !confirm(confirmText)) return refresh();
@@ -598,6 +615,7 @@ import '../../styles/global.css';
         const statusSel = filters.elements.namedItem('status') as HTMLSelectElement;
         statusSel.insertAdjacentHTML('beforeend', config.statuses.map((s) => `<option>${esc(s)}</option>`).join(''));
         refresh();
+        loadHealth();
       })();
     </script>
   </body>

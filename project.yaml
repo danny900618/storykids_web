@@ -501,7 +501,7 @@ tasks:
     notes: 正式環境不設 ADMIN_PASSWORD，上線前正式後台維持拒絕存取；ACCESS_* 填在 wrangler.jsonc 的 env.production.vars
     depends_on: [T9]
   - id: T32
-    title: Email 正式寄送：Brevo 驗證網域（DKIM／SPF／DMARC）、Cloudflare Email Routing（service@ → story698@gmail.com）、MAIL_FROM 改回 service@、COMPANY_EMAIL 確認、MAIL_MODE=live
+    title: Email 正式寄送：Brevo 驗證網域（DKIM／SPF／DMARC）、Cloudflare Email Routing（service@ → story698@gmail.com）、MAIL_FROM 改回 service@、COMPANY_EMAIL 確認、MAIL_MODE=live；HEALTH_ALERT_FROM 一併改為 service@
     status: todo
     depends_on: [T9, Q15]
   - id: T33
@@ -605,9 +605,13 @@ tasks:
       上線後網址改為 storykids.com.tw、sms-relay.storykids.com.tw（T30）。2026 年起 UptimeRobot 免費方案允許商業用途
   - id: T49
     title: 每日系統健康檢查（Cron Trigger）：Email 當日寄送量（Brevo 每日 300 封）、三竹點數、24 小時內寄送失敗、轉發主機、被拒絕的銷帳檔；有問題才寄信
-    status: todo
+    status: done
     owner: 開發者
-    notes: 2026-10-14 提議，待使用者決定是否實作。營隊開放報名前可先把 Brevo 升級一個月（Starter），避免當天寄信額度用完
+    notes: >
+      2026-10-14 完成：src/worker/health.ts，正式環境 Cron 每小時（0 * * * *）；檢查當日 Email 寄送量（≥250 警告）、24 小時內寄送失敗、三竹點數（<300）、
+      無法辨識的銷帳檔、需人工確認的報名、轉發主機 /healthz；同一問題 24 小時內只寄一次（D1 health_alerts，migration 0006）；
+      寄給 HEALTH_ALERT_TO（開發者、補習班 Gmail），寄件人 HEALTH_ALERT_FROM（網域驗證後改 service@，T32）；後台上方顯示目前問題（/api/admin/health）。測試 95 項。
+      營隊開放報名前可先把 Brevo 升級一個月（Starter），避免當天寄信額度用完
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -738,3 +742,5 @@ changelog:
     note: 開發者已將「一定要存」的帳密（sFTP 密碼、三竹帳密、各服務登入帳密與雙重驗證備用碼）存入密碼管理工具；其餘密鑰遺失時依 docs/credentials.md 重新產生。
   - date: 2026-10-14
     note: 盤點各服務額度風險（實際風險：Brevo 每日 300 封、三竹點數、AWS 主機）；新增 T48 UptimeRobot 外部監測、T49 每日系統健康檢查（提議）。
+  - date: 2026-10-14
+    note: 系統健康檢查（T49）：正式環境每小時檢查 Email 寄送量、寄送失敗、三竹點數、銷帳檔、需人工確認、轉發主機，有問題寄信（同一問題 24 小時一次），後台上方顯示；migration 0006。
