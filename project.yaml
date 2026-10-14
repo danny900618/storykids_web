@@ -491,7 +491,7 @@ tasks:
     notes: ⚠️ storykids.com.tw/api/taishin/notify 必須直接由 Worker 回應，不可設定 apex→www 轉址（台新即時通知不跟隨轉址）；DNS 切換後通知台新啟用即時傳輸
     depends_on: [T9]
   - id: T30
-    title: 正式網域設定：Turnstile Hostnames（✅ 已於 2026-10-14 加入 storykids.com.tw）、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
+    title: 正式網域設定：Turnstile Hostnames（✅ 已於 2026-10-14 加入 storykids.com.tw）、UptimeRobot 監測網址改為 storykids.com.tw 與 sms-relay.storykids.com.tw、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
     status: todo
     notes: base_url 改到正式網域前，先設定 `wrangler secret put GITHUB_CLIENT_SECRET --env production`（OAuth App 另產生一組），否則內容後台無法登入
     depends_on: [T9]
@@ -595,6 +595,18 @@ tasks:
     title: 補習班內容整理：貼上遮蔽版榮譽榜（honer-masked.md）、處理「116冬令營」課程、確認各課程類別與補課／退費辦法、更新繳費說明頁（Q10）、營業時間（Q9）、照片（Q11）、學生姓名（Q8）
     status: todo
     owner: 補習班
+  - id: T48
+    title: UptimeRobot 外部監測（免費，每 5 分鐘）：正式網站首頁、報名系統 API（/api/public-config 關鍵字 turnstile_site_key）、轉發主機 /healthz（關鍵字 ok）、網域到期；通知開發者與補習班負責人
+    status: todo
+    owner: 開發者
+    notes: >
+      首頁是靜態檔不計 Workers 額度；API 每天 288 次（不碰 D1）、轉發主機不經 Cloudflare，額度影響可忽略。不監測 sFTP 2222（只開放台新 IP，會誤報）。
+      上線後網址改為 storykids.com.tw、sms-relay.storykids.com.tw（T30）。2026 年起 UptimeRobot 免費方案允許商業用途
+  - id: T49
+    title: 每日系統健康檢查（Cron Trigger）：Email 當日寄送量（Brevo 每日 300 封）、三竹點數、24 小時內寄送失敗、轉發主機、被拒絕的銷帳檔；有問題才寄信
+    status: todo
+    owner: 開發者
+    notes: 2026-10-14 提議，待使用者決定是否實作。營隊開放報名前可先把 Brevo 升級一個月（Starter），避免當天寄信額度用完
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
@@ -723,3 +735,5 @@ changelog:
     note: 新增 docs/credentials.md（所有帳號與密鑰的名稱、用途、位置、重新產生方式與連動關係，不含值）與 Bitwarden 匯入範本產生器（npm run credentials:template，輸出已 gitignore）。
   - date: 2026-10-14
     note: 開發者已將「一定要存」的帳密（sFTP 密碼、三竹帳密、各服務登入帳密與雙重驗證備用碼）存入密碼管理工具；其餘密鑰遺失時依 docs/credentials.md 重新產生。
+  - date: 2026-10-14
+    note: 盤點各服務額度風險（實際風險：Brevo 每日 300 封、三竹點數、AWS 主機）；新增 T48 UptimeRobot 外部監測、T49 每日系統健康檢查（提議）。
