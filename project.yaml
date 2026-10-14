@@ -485,7 +485,7 @@ tasks:
     notes: ⚠️ storykids.com.tw/api/taishin/notify 必須直接由 Worker 回應，不可設定 apex→www 轉址（台新即時通知不跟隨轉址）；DNS 切換後通知台新啟用即時傳輸
     depends_on: [T9]
   - id: T30
-    title: 正式網域設定：Turnstile Hostnames、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
+    title: 正式網域設定：Turnstile Hostnames（✅ 已於 2026-10-14 加入 storykids.com.tw）、GitHub OAuth App 網址、public/cms/config.yml 的 base_url／site_url、wrangler.jsonc 的 PUBLIC_SITE_URL
     status: todo
     notes: base_url 改到正式網域前，先設定 `wrangler secret put GITHUB_CLIENT_SECRET --env production`（OAuth App 另產生一組），否則內容後台無法登入
     depends_on: [T9]
@@ -571,10 +571,10 @@ tasks:
     notes: 2026-10-14 確認恢復：push 後測試環境自動部署（2026-10-13 那次未部署應為暫時性問題）；若再發生，到 Cloudflare 後台 Deployments／Builds 看建置紀錄
   - id: T44
     title: Turnstile（故事講堂報名）Hostnames 加上正式 Worker 網址 storykids-web-production.c0981985611.workers.dev（上線時再加 storykids.com.tw、www）
-    status: in_progress
+    status: done
     owner: 開發者
     notes: >
-      2026-10-14 已加正式 Worker 網址。Hostname 會涵蓋其所有子網域，所以只要再加 storykids.com.tw（含 www），建議上線前先加；
+      2026-10-14 完成，Hostnames 共 3 個：storykids-web（測試）、storykids-web-production（正式 workers.dev）、storykids.com.tw（涵蓋 www 與所有子網域）。
       免費方案每個 widget 最多 10 個 hostname
   - id: T45
     title: 正式環境簡訊：設定 SMS_RELAY_KEY、MITAKE_USERNAME、MITAKE_PASSWORD（--env production）；MITAKE_API_URL 先用臨時網址，DNS 切換後改 sms-relay.storykids.com.tw
