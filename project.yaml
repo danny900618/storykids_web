@@ -229,6 +229,11 @@ open_questions:
       DNS 目前由墨宇（ns1/ns2.mor-e.tw）管理；網域是否有使用 Email（MX 指向舊主機）
     owner: 補習班
     blocks: [T9]
+    status: partial
+    answer: >
+      2026-10-14 網路中文會員帳號權限已轉到補習班帳號；但 TWNIC WHOIS 註冊人仍為「魔瓶視覺設計」（che22@m-design.com.tw），DNS 仍為 ns1/ns2.mor-e.tw。
+      待辦：向網路中文詢問註冊人變更（過戶）程序與文件（可能需原註冊人同意書），將註冊人改為補習班、各聯絡人 Email 改為補習班信箱（不要用 @storykids.com.tw）；
+      開啟自動續約；向外包確認 ns1/ns2.mor-e.tw 與舊主機維持到何時（須晚於新站上線與 DNS 切換）。
   - id: Q3
     question: 設計方向——沿用現有風格或重新設計？有無 Logo 原始檔、指定色系？
     owner: 補習班
@@ -661,3 +666,5 @@ changelog:
       後台「台新銷帳檔」列表；測試模式帳號檢查碼故意錯誤避免真的收款；測試 88 項。
   - date: 2026-10-14
     note: 內容後台內文編輯器新增「插入下載檔案」按鈕（Sveltia 自訂編輯器元件，檔案存 public/files），網站以下載圖示＋粗體顯示。
+  - date: 2026-10-14
+    note: 網域帳號權限已轉給補習班，但 WHOIS 註冊人仍為魔瓶視覺設計；Q2 改為 partial，待辦註冊人過戶與聯絡人 Email 更新。
