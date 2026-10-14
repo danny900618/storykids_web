@@ -4,6 +4,7 @@
 
 ## 規則
 
+- **密碼與密鑰的值絕不寫進 repo**：清單在 `docs/credentials.md`（只有名稱、用途、位置），新增或移除密鑰時同步更新該檔與 `scripts/credentials-template.mjs`。
 - **個資（學生、家長、報名資料）只能存在 Cloudflare D1**，絕不寫進 repo、內容檔或 log。舊站匯出的報名 xls 放 `old_class/`（已 gitignore），用 `scripts/import-legacy.mjs` 匯入；清除測試資料時要保留 `legacy_term` 不為空的舊站資料。
 - 內容（消息、課程類別、課程與上課時段、報名辦法、頁面、老師、相簿、網站設定）放在 `src/content/`，由內容後台 `/cms`（Sveltia CMS，設定檔 `public/cms/config.yml`）編輯；新增內容欄位時，要同步更新 `src/content.config.ts` 與 `public/cms/config.yml`。Sveltia 欄位預設必填，選填欄位要加 `required: false`。內文編輯器的自訂按鈕（插入下載檔案）在 `public/cms/editor-components.js`，改輸出格式時 `pattern` 要一起改。
 - 不使用 Tailwind CDN、不在前端用 JS 渲染內容；內容一律於建置時產生 HTML。例外：額滿狀態、報名表、報名管理後台需要即時資料，透過 `/api/*` 取得。前台不顯示名額與剩餘名額。

@@ -40,6 +40,8 @@
 - 預覽網址：https://storykids-web.c0981985611.workers.dev
 - 正式網址：https://storykids.com.tw（DNS 尚未切換）
 
+帳號與密鑰清單（名稱、用途、存放位置、怎麼重新產生，**不含值**）：[docs/credentials.md](docs/credentials.md)；Bitwarden 匯入範本：`npm run credentials:template`。
+
 ## 費用、額度與綁卡（2026-10 查證）
 
 目前全部使用免費方案，**沒有任何服務需要綁信用卡，也沒有自動扣款**（網域續約除外）。

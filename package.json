@@ -15,7 +15,8 @@
     "deploy:production": "astro build && wrangler deploy --env production",
     "check:worker": "tsc -p src/worker/tsconfig.json",
     "test": "vitest run",
-    "relay:check": "node scripts/check-relay.mjs"
+    "relay:check": "node scripts/check-relay.mjs",
+    "credentials:template": "node scripts/credentials-template.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
