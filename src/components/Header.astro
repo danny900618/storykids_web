@@ -3,13 +3,14 @@
 // 「關於講堂」「課程介紹」「上課須知」有下拉子選單，內容由後台資料自動產生；點選單名稱本身會進入總覽頁
 // 底色沿用舊站的橘色（上緣深紅線），Logo 的橘色底與頁首融為一體
 import Icon from './Icon.astro';
-import { site, registrationHref, isExternal } from '../lib/site';
+import { site, isExternal } from '../lib/site';
+import { getRegistrationHref } from '../lib/content';
 import { getNav } from '../lib/nav';
 
 const nav = await getNav();
 const current = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isActive = (href: string) => current === href || current.startsWith(`${href}/`);
-const regHref = registrationHref();
+const regHref = await getRegistrationHref();
 ---
 
 <header class="sticky top-0 z-40 border-t-4 border-brand-700 bg-brand-500 shadow-md">

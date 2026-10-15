@@ -76,3 +76,14 @@ export async function getGallery() {
     return a.data.order - b.data.order;
   });
 }
+
+// 頁首與手機底部「線上報名」按鈕的連結：網站設定選的課程類別（啟用且有課程）→ 線上報名連結 → LINE → 聯絡頁
+export async function getRegistrationHref(): Promise<string> {
+  const { site, registrationHref } = await import('./site');
+  const id = site.registration_category;
+  if (id) {
+    const group = (await getCourseGroups()).find((g) => g.id === id);
+    if (group) return `/courses/category/${group.id}`;
+  }
+  return registrationHref();
+}

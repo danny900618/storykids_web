@@ -3,9 +3,10 @@
 // - 手機版：固定在畫面底部的操作列（電話、LINE、線上報名）
 // - 桌機版：右下角 LINE 漂浮按鈕（報名按鈕已在 Header 右上角）
 import Icon from './Icon.astro';
-import { site, registrationHref, isExternal, telHref } from '../lib/site';
+import { site, isExternal, telHref } from '../lib/site';
+import { getRegistrationHref } from '../lib/content';
 
-const regHref = registrationHref();
+const regHref = await getRegistrationHref();
 const external = isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {};
 ---
 

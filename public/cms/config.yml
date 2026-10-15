@@ -312,5 +312,15 @@ collections:
           - { name: email, label: Email, widget: string, required: false }
           - { name: line_url, label: LINE 官方帳號連結, widget: string, required: false }
           - { name: facebook_url, label: Facebook 粉絲專頁連結, widget: string, required: false }
-          - { name: registration_url, label: 線上報名連結（課程沒有設定上課時段時使用；未填寫時報名按鈕會連到 LINE）, widget: string, required: false }
+          # 頁首與手機底部「線上報名」按鈕要前往的課程類別（存類別檔名，例如 summer-115）
+          - name: registration_category
+            label: 線上報名按鈕要前往的課程類別
+            widget: relation
+            collection: categories
+            value_field: "{{slug}}"
+            search_fields: [title]
+            display_fields: [title]
+            required: false
+            hint: 頁首與手機底部的「線上報名」會跳到這個類別的課程列表。未選擇、類別未啟用或沒有課程時，改用下方的線上報名連結（再沒有就連到 LINE）
+          - { name: registration_url, label: 線上報名連結（沒有選擇上方類別、或課程沒有設定上課時段時使用；未填寫時會連到 LINE）, widget: string, required: false }
           - { name: registration_label, label: 報名按鈕文字, widget: string, default: 線上報名, required: false }

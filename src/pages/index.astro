@@ -6,7 +6,7 @@ import Carousel from '../components/Carousel.astro';
 import CourseCard from '../components/CourseCard.astro';
 import StoryRow from '../components/StoryRow.astro';
 import Icon from '../components/Icon.astro';
-import { site, registrationHref, isExternal, excerpt } from '../lib/site';
+import { site, excerpt } from '../lib/site';
 import { getNews, getCourses, getPages, getGalleryStories } from '../lib/content';
 
 // 輪播：勾選「顯示在首頁」的消息（最多 5 則），圖片優先用輪播圖片，其次封面
@@ -25,8 +25,6 @@ const homeStories = (await getGalleryStories()).slice(0, 2);
 const aboutPages = await getPages('about');
 const aboutIntro = aboutPages[0];
 
-const regHref = registrationHref();
-const external = isExternal(regHref) ? { target: '_blank', rel: 'noopener' } : {};
 const mapQuery = encodeURIComponent(`${site.full_name} ${site.address}`);
 ---
 
@@ -42,16 +40,12 @@ const mapQuery = encodeURIComponent(`${site.full_name} ${site.address}`);
     )
   }
 
-  <!-- 標語與報名按鈕 -->
+  <!-- 標語（「線上報名」在頁首與手機底部，這裡不重複） -->
   <section class="bg-gradient-to-b from-brand-50 to-cream">
     <div class="container-page flex flex-col items-center gap-6 py-12 text-center sm:py-16">
       <h1 class="text-3xl leading-tight font-bold text-ink-900 sm:text-4xl">{site.slogan}</h1>
       <p class="max-w-2xl text-ink-500">{site.description}</p>
       <div class="flex flex-wrap justify-center gap-3">
-        <a href={regHref} class="btn-primary px-7 py-3 text-lg" {...external}>
-          <Icon name="pencil" class="size-5" />
-          {site.registration_label}
-        </a>
         <a href="/news" class="btn-outline px-7 py-3 text-lg">最新消息</a>
       </div>
     </div>
