@@ -93,8 +93,8 @@
       "triggers": { "crons": ["0 * * * *"] },
       "vars": {
         "ENV_LABEL": "正式環境",
-        // 健康檢查警告的收件人與寄件人（寄件網域驗證完成前，寄件人用 Brevo 已驗證的信箱）
-        "HEALTH_ALERT_TO": "c0981985611@gmail.com,story698@gmail.com",
+        // 健康檢查警告的收件人（只寄開發者，2026-10-15 決定）與寄件人（寄件網域驗證完成前，用 Brevo 已驗證的信箱）
+        "HEALTH_ALERT_TO": "c0981985611@gmail.com",
         "HEALTH_ALERT_FROM": "故事講堂系統通知 <c0981985611@gmail.com>",
         // 正式機的 workers.dev 網址也列入：金流正式串接（PAYMENT_MODE=live）前，正式機一律不開放報名
         "PRODUCTION_HOSTS": "storykids.com.tw,www.storykids.com.tw,storykids-web-production.c0981985611.workers.dev",

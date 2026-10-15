@@ -270,8 +270,8 @@ npx wrangler secret put ADMIN_PASSWORD --env production   # 暫時的後台密�
 
 | 監測 | 方式 | 通知 |
 |---|---|---|
-| 正式網站、報名系統 API、轉發主機、網域到期 | **UptimeRobot**（免費，每 5 分鐘；設定見 project.yaml T48） | Email：開發者、補習班負責人 |
-| Email 寄送量、寄送失敗、三竹點數、銷帳檔、需人工確認、轉發主機 | **系統健康檢查**（`src/worker/health.ts`，正式環境 Cron 每小時；同一問題 24 小時內只寄一次） | Email：`HEALTH_ALERT_TO`；報名管理後台上方也會顯示 |
+| 正式網站、報名系統 API、轉發主機、網域到期 | **UptimeRobot**（免費，每 5 分鐘；設定見 project.yaml T48） | Email：開發者（c0981985611@gmail.com） |
+| Email 寄送量、寄送失敗、三竹點數、銷帳檔、需人工確認、轉發主機 | **系統健康檢查**（`src/worker/health.ts`，正式環境 Cron 每小時；同一問題 24 小時內只寄一次） | Email：`HEALTH_ALERT_TO`（開發者 c0981985611@gmail.com）；報名管理後台上方也會顯示 |
 | 轉發主機當機 | Lightsail Status check 警報（relay/README.md 第 11 步） | Email |
 | AWS 費用 | AWS Budgets（每月 US$15） | Email |
 | 三竹點數 | 報名管理後台右上角（低於 200 點變紅） | 人工查看 |
