@@ -219,7 +219,7 @@ npx wrangler secret put MITAKE_PASSWORD --env production
 
 | 項目 | 方式 |
 |---|---|
-| 系統安全更新 | 自動（unattended-upgrades，包含 Caddy）；需要時凌晨 4 點自動重開機 |
+| 系統安全更新 | 自動（unattended-upgrades，包含 Caddy）；需要時凌晨 4:30 自動重開機（錯開整點健康檢查） |
 | HTTPS 憑證 | Caddy 自動申請與更新 |
 | 簡訊有沒有送出 | 報名管理後台「紀錄」會顯示每則簡訊成功或失敗 |
 | 帳單 | 每月約 US$5，有預算通知 |

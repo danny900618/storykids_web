@@ -31,7 +31,20 @@ function relayHealthUrl(env: Env): string | null {
   return `${url.origin}/healthz`;
 }
 
-export async function checkHealth(env: Env): Promise<HealthIssue[]> {
+// 轉發主機檢查：連不上時間隔重試（主機自動安全更新可能剛好在重開機，約 1 分鐘）
+async function relayReachable(url: string, attempts: number, delayMs: number): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, delayMs));
+    const ok = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+      .then(async (res) => res.ok && (await res.text()).trim() === 'ok')
+      .catch(() => false);
+    if (ok) return true;
+  }
+  return false;
+}
+
+// opts.relayAttempts：排程用 3 次（間隔 30 秒）避免主機重開機時誤報；後台即時查看用 1 次
+export async function checkHealth(env: Env, opts: { relayAttempts?: number; relayRetryDelayMs?: number } = {}): Promise<HealthIssue[]> {
   const issues: HealthIssue[] = [];
   const since24h = new Date(Date.now() - 24 * 3600_000).toISOString();
 
@@ -74,9 +87,7 @@ export async function checkHealth(env: Env): Promise<HealthIssue[]> {
 
   const healthUrl = relayHealthUrl(env);
   if (healthUrl) {
-    const ok = await fetch(healthUrl, { signal: AbortSignal.timeout(10_000) })
-      .then(async (res) => res.ok && (await res.text()).trim() === 'ok')
-      .catch(() => false);
+    const ok = await relayReachable(healthUrl, opts.relayAttempts ?? 1, opts.relayRetryDelayMs ?? 30_000);
     if (!ok) issues.push({ key: 'relay', level: 'error', message: `簡訊／銷帳檔轉發主機（${new URL(healthUrl).hostname}）沒有回應：簡訊可能發不出去、台新入帳資料可能進不來` });
   }
 
@@ -84,8 +95,8 @@ export async function checkHealth(env: Env): Promise<HealthIssue[]> {
 }
 
 // 排程：檢查並寄出警告（每個問題 24 小時內只寄一次）
-export async function runHealthCheck(env: Env): Promise<{ issues: HealthIssue[]; alerted: string[] }> {
-  const issues = await checkHealth(env);
+export async function runHealthCheck(env: Env, opts: { relayRetryDelayMs?: number } = {}): Promise<{ issues: HealthIssue[]; alerted: string[] }> {
+  const issues = await checkHealth(env, { relayAttempts: 3, relayRetryDelayMs: opts.relayRetryDelayMs });
   const now = nowIso();
   const cutoff = new Date(Date.now() - ALERT_INTERVAL_MS).toISOString();
   const { results: recent } = await env.DB.prepare('SELECT key FROM health_alerts WHERE last_alert_at > ?').bind(cutoff).all<{ key: string }>();

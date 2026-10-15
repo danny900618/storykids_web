@@ -118,7 +118,7 @@ systemctl daemon-reload
 systemctl enable caddy
 systemctl restart caddy
 
-# ---- 自動安全更新（含 Caddy），需要時凌晨 4 點自動重開機 ----
+# ---- 自動安全更新（含 Caddy），需要時凌晨 4:30 自動重開機（錯開 Worker 每小時整點的健康檢查） ----
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -129,7 +129,7 @@ Unattended-Upgrade::Origins-Pattern {
 	"site=dl.cloudsmith.io";
 };
 Unattended-Upgrade::Automatic-Reboot "true";
-Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+Unattended-Upgrade::Automatic-Reboot-Time "04:30";
 EOF
 systemctl enable --now unattended-upgrades
 

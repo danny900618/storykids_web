@@ -80,6 +80,19 @@ describe('系統健康檢查', () => {
     expect((await runHealthCheck(env())).alerted).toEqual(['send_failures']);
   });
 
+  it('排程檢查轉發主機時會重試：短暫連不上（例如主機重開機）不會誤報', async () => {
+    const relay = { MITAKE_API_URL: 'https://sms-relay.example.com/api/mtk/SmSend', SMS_RELAY_KEY: 'x'.repeat(64) };
+    let calls = 0;
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      if (url.hostname === 'sms-relay.example.com') return ++calls < 3 ? new Response('', { status: 502 }) : new Response('ok');
+      return new Response('{}');
+    });
+    const r = await runHealthCheck(env(relay), { relayRetryDelayMs: 0 });
+    expect(calls).toBe(3);
+    expect(r.issues).toEqual([]);
+  });
+
   it('排程進入點會執行健康檢查', async () => {
     await addNotification('email', 'failed');
     const ctx = createExecutionContext();
