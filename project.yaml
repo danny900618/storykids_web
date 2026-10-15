@@ -612,6 +612,11 @@ tasks:
       無法辨識的銷帳檔、需人工確認的報名、轉發主機 /healthz；同一問題 24 小時內只寄一次（D1 health_alerts，migration 0006）；
       寄給 HEALTH_ALERT_TO（2026-10-15 起只寄開發者 c0981985611@gmail.com），寄件人 HEALTH_ALERT_FROM（網域驗證後改 service@，T32）；後台上方顯示目前問題（/api/admin/health）。測試 95 項。
       營隊開放報名前可先把 Brevo 升級一個月（Starter），避免當天寄信額度用完
+  - id: T50
+    title: 台新 sFTP 啟用後補強監控：健康檢查加「太久沒收到銷帳檔」（有等待付費的報名時）；轉發主機 /healthz 回報 upload 資料夾卡住未轉交的檔案數
+    status: todo
+    depends_on: [T41]
+    notes: 門檻要看台新實際傳檔頻率（無入帳時是否傳空白檔）再決定；目前 UptimeRobot＋每小時健康檢查已涵蓋網站、API、轉發主機、寄送失敗、點數、Email 額度
   - id: T38
     title: 上線後關閉正式 Worker 的 workers.dev 網址（storykids-web-production…workers.dev），只留 storykids.com.tw
     status: todo
