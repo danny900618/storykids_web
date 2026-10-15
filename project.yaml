@@ -589,8 +589,9 @@ tasks:
     owner: 開發者
   - id: T46
     title: 轉發主機收尾：Lightsail 防火牆開 TCP 2222 只給台新 IP、Status check 當機通知、AWS 根帳號 MFA 與預算通知
-    status: todo
+    status: in_progress
     owner: 開發者
+    notes: 2026-10-15 已完成 Lightsail Status check 當機通知、AWS 預算通知（收件人只設開發者）。待確認：防火牆 TCP 2222（只給台新 IP）、AWS 根帳號 MFA
   - id: T47
     title: 補習班內容整理：貼上遮蔽版榮譽榜（honer-masked.md）、處理「116冬令營」課程、確認各課程類別與補課／退費辦法、更新繳費說明頁（Q10）、營業時間（Q9）、照片（Q11）、學生姓名（Q8）
     status: todo
