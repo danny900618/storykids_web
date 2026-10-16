@@ -779,3 +779,5 @@ changelog:
       內文單一換行改為顯示換行（與內容後台預覽一致；人員反映草莓老師簡介換行不見）：Markdown 改用 unified（@astrojs/markdown-remark）＋remark-breaks，
       smartypants 設為 dashes oldschool、quotes false（避免中文旁引號轉錯方向）；全站逐頁比對建置結果，除老師簡介換行外無差異（講堂緣起引號改為全形）。
       注意：改 markdown 設定後本機要清快取 rm -rf .astro node_modules/.astro 再建置。
+  - date: 2026-10-16
+    note: 「CMS 已刪除的時段」警告只看有效報名（不含取消報名、轉至其他梯次、已刪除、舊站資料）：取消時段時，報名改取消或轉梯次後即可刪時段而不再警告。
