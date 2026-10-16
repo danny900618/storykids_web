@@ -60,7 +60,7 @@ import '../../styles/global.css';
             </select>
           </label>
           <label class="text-sm">狀態
-            <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>需人工確認</option><option>逾期未繳</option></select>
+            <select name="status" class="mt-1 block rounded-lg border border-black/15 px-3 py-2"><option value="">全部狀態</option><option>需人工確認</option><option>逾期未繳</option><option>已刪除</option></select>
           </label>
           <label class="text-sm">搜尋
             <input name="q" placeholder="姓名、電話、Email、學校、課程、帳號、編號" class="mt-1 block w-64 rounded-lg border border-black/15 px-3 py-2" />
@@ -171,6 +171,7 @@ import '../../styles/global.css';
         school: string | null; grade: string | null; phone: string; email: string; note: string | null; admission: string; status: string;
         gender: string | null; tel: string | null; zip: string | null; address: string | null; diet: string | null; discount_amount: number | null; early_bird_discount: number | null;
         agreed_policies: string | null; legacy_id: number | null; legacy_term: string | null; legacy_va: string | null;
+        deleted_at: string | null; deleted_by: string | null; delete_reason: string | null;
         amount: number; va_account: string | null; va_expires_at: string | null; paid_amount: number | null; paid_at: string | null;
         review_note: string | null; created_at: string; expired: boolean;
       }
@@ -232,20 +233,29 @@ import '../../styles/global.css';
           ? `<button data-mock="${r.id}" class="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-700">模擬入帳</button>` : '';
         const review = r.review_note
           ? `<div class="mt-1 rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-700">⚠️ 需人工確認：${esc(r.review_note)}</div>` : '';
-        return `<tr class="align-top ${r.status === '取消報名' ? 'opacity-50' : ''} ${r.review_note ? 'bg-red-50/40' : ''}">
+        // 刪除（誤報名）：已繳費或已有入帳紀錄的不能刪；已刪除的顯示原因並可復原
+        const deleted = !!r.deleted_at;
+        const deletedInfo = deleted
+          ? `<div class="mt-1 rounded-lg bg-slate-100 px-2 py-1 text-xs text-ink-700">已刪除：${esc(r.delete_reason)}（${esc((r.deleted_by ?? '').replace(/^password:/, ''))}・${tw(r.deleted_at)}）</div>` : '';
+        const deleteBtn = deleted
+          ? `<button data-restore="${r.id}" class="rounded-lg border border-brand-600 px-2 py-1 text-xs font-bold text-brand-700 hover:bg-brand-50">復原</button>`
+          : !paid && !r.paid_at && !legacy
+          ? `<button data-delete="${r.id}" class="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50">刪除</button>` : '';
+        const lock = deleted ? 'disabled title="已刪除的報名請先復原"' : '';
+        return `<tr class="align-top ${r.status === '取消報名' || deleted ? 'opacity-50' : ''} ${r.review_note ? 'bg-red-50/40' : ''}">
           <td class="px-3 py-3 font-bold">${r.id}</td>
           <td class="px-3 py-3 whitespace-nowrap">${legacy ? `<span class="rounded bg-slate-200 px-1.5 py-0.5 text-xs">舊站 ${esc(r.legacy_term)}</span>` : tw(r.created_at)}</td>
           <td class="px-3 py-3"><div class="text-xs text-ink-500">${esc(r.course_title)}</div>${esc(r.session_name)}</td>
           <td class="px-3 py-3"><button type="button" data-profile="${r.id}" class="font-bold text-brand-700 underline decoration-dotted hover:decoration-solid">${esc(r.student_name)}</button>${r.gender ? `<span class="ml-1 text-xs text-ink-500">${esc(r.gender)}</span>` : ''}<div class="text-ink-500">${esc(r.parent_name)}</div></td>
           <td class="px-3 py-3">${esc(r.school)}<div class="text-ink-500">${esc(r.grade)}</div></td>
           <td class="px-3 py-3"><div>${esc(r.phone)}</div>${r.tel ? `<div class="text-ink-500">${esc(r.tel)}</div>` : ''}<div class="text-ink-500">${esc(r.email)}</div>${r.note ? `<div class="mt-1 text-xs text-ink-500">備註：${esc(r.note)}</div>` : ''}</td>
-          <td class="px-3 py-3"><select data-admission="${r.id}" ${legacy ? 'disabled title="舊站資料不能修改"' : ''} class="rounded-lg border border-black/15 px-2 py-1 disabled:opacity-60 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
+          <td class="px-3 py-3"><select data-admission="${r.id}" ${legacy ? 'disabled title="舊站資料不能修改"' : lock} class="rounded-lg border border-black/15 px-2 py-1 disabled:opacity-60 ${r.admission === '候補' ? 'bg-yellow-50' : ''}">
             <option ${r.admission === '正取' ? 'selected' : ''}>正取</option><option ${r.admission === '候補' ? 'selected' : ''}>候補</option></select></td>
-          <td class="px-3 py-3"><select data-status="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 ${paid ? 'bg-green-50' : ''}">${statusOptions}</select>
-            ${r.paid_at ? `<div class="mt-1 text-xs ${paid ? 'text-green-700' : 'text-red-700'}">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}${review}</td>
+          <td class="px-3 py-3"><select data-status="${r.id}" ${lock} class="rounded-lg disabled:opacity-60 border border-black/15 px-2 py-1 ${paid ? 'bg-green-50' : ''}">${statusOptions}</select>
+            ${r.paid_at ? `<div class="mt-1 text-xs ${paid ? 'text-green-700' : 'text-red-700'}">入帳 ${money(r.paid_amount)}・${tw(r.paid_at)}</div>` : ''}${review}${deletedInfo}</td>
           <td class="px-3 py-3"><div class="font-bold">${legacy ? '' : money(r.amount)}</div>${discount}${vaInfo}</td>
-          <td class="space-y-1 px-3 py-3"><div class="flex flex-wrap gap-1">${mockBtn}
-            <button data-history="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 text-xs hover:bg-slate-100">紀錄</button></div></td>
+          <td class="space-y-1 px-3 py-3"><div class="flex flex-wrap gap-1">${deleted ? '' : mockBtn}
+            <button data-history="${r.id}" class="rounded-lg border border-black/15 px-2 py-1 text-xs hover:bg-slate-100">紀錄</button>${deleteBtn}</div></td>
         </tr>`;
       }
 
@@ -387,6 +397,29 @@ import '../../styles/global.css';
         }
         if ((e.target as HTMLElement).closest('[data-close-profile]')) {
           $<HTMLDialogElement>('profile').close();
+          return;
+        }
+        const del = (e.target as HTMLElement).closest<HTMLElement>('[data-delete],[data-restore]');
+        if (del) {
+          const id = del.dataset.delete ?? del.dataset.restore!;
+          const r = currentRows.get(Number(id));
+          try {
+            if (del.dataset.delete) {
+              const reason = prompt(
+                `刪除報名 #${id}（${r?.student_name ?? ''}）\n\n` +
+                  '刪除後會從列表隱藏、釋放名額，不會通知家長；可在「狀態：已刪除」復原。\n' +
+                  '⚠️ 已發出的繳費帳號在期限內仍可轉帳，若家長仍轉帳，系統會標記「需人工確認」。\n\n請輸入刪除原因（例如：家長重複報名）：',
+              );
+              if (!reason?.trim()) return;
+              await api(`/registrations/${id}/delete`, { method: 'POST', body: JSON.stringify({ reason }) });
+            } else {
+              if (!confirm(`復原報名 #${id}（${r?.student_name ?? ''}）？`)) return;
+              await api(`/registrations/${id}/restore`, { method: 'POST', body: '{}' });
+            }
+          } catch (err) {
+            alert((err as Error).message);
+          }
+          refresh();
           return;
         }
         const el = (e.target as HTMLElement).closest<HTMLElement>('[data-mock],[data-history],[data-filter-session],[data-close]');

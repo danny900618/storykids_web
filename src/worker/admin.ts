@@ -46,6 +46,8 @@ export async function handleAdmin(request: Request, env: Env, actor: string): Pr
     if (method === 'PATCH' && action === '') return updateRegistration(request, env, id, actor);
     if (method === 'PATCH' && action === '/profile') return updateProfile(request, env, id, actor);
     if (method === 'POST' && action === '/mock-payment') return mockPayment(request, env, id, actor);
+    if (method === 'POST' && action === '/delete') return deleteRegistration(request, env, id, actor);
+    if (method === 'POST' && action === '/restore') return restoreRegistration(request, env, id, actor);
   }
   return json({ error: '找不到' }, 404);
 }
@@ -58,7 +60,7 @@ async function listSessions(request: Request, env: Env): Promise<Response> {
   // 舊站匯入的時段本來就不在 CMS，另外列出（依梯次分組篩選用）
   const orphans = [...counts.keys()].filter((code) => !known.has(code) && !code.startsWith(LEGACY_PREFIX));
   const { results: legacyTerms } = await env.DB.prepare(
-    `SELECT legacy_term AS term, COUNT(*) AS n FROM registrations WHERE legacy_term IS NOT NULL GROUP BY legacy_term ORDER BY legacy_term DESC`,
+    `SELECT legacy_term AS term, COUNT(*) AS n FROM registrations WHERE legacy_term IS NOT NULL AND deleted_at IS NULL GROUP BY legacy_term ORDER BY legacy_term DESC`,
   ).all<{ term: string; n: number }>();
   return json({
     sessions: sessions.map((s) => ({ ...s, taken: counts.get(s.code)?.taken ?? 0, waitlist: counts.get(s.code)?.waitlist ?? 0 })),
@@ -104,7 +106,11 @@ function registrationFilters(params: URLSearchParams): { where: string[]; binds:
   if (params.get('source') === 'legacy') where.push('legacy_term IS NOT NULL');
   if (term) { where.push('legacy_term = ?'); binds.push(term); }
   if (admission) { where.push('admission = ?'); binds.push(admission); }
-  if (status === '逾期未繳') { where.push(`status = '等待付費' AND va_expires_at < ?`); binds.push(nowIso()); }
+  // 已刪除（誤報名）的報名預設不顯示，狀態篩選選「已刪除」才看得到
+  where.push(status === '已刪除' ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL');
+  if (status === '已刪除') {
+    // 只用上面的條件
+  } else if (status === '逾期未繳') { where.push(`status = '等待付費' AND va_expires_at < ?`); binds.push(nowIso()); }
   else if (status === '需人工確認') { where.push('review_note IS NOT NULL'); }
   else if (status) { where.push('status = ?'); binds.push(status); }
   if (q) {
@@ -121,6 +127,7 @@ async function updateRegistration(request: Request, env: Env, id: number, actor:
   const body = (await request.json().catch(() => ({}))) as { status?: string; admission?: string };
   const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
   if (!reg) return json({ error: '找不到這筆報名' }, 404);
+  if (reg.deleted_at) return json({ error: '這筆報名已刪除，請先復原再修改' }, 400);
 
   const now = nowIso();
   const changes: string[] = [];
@@ -182,6 +189,7 @@ async function updateProfile(request: Request, env: Env, id: number, actor: stri
   if (!body) return json({ error: '格式錯誤' }, 400);
   const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
   if (!reg) return json({ error: '找不到這筆報名' }, 404);
+  if (reg.deleted_at) return json({ error: '這筆報名已刪除，請先復原再修改' }, 400);
 
   const profile = readProfile(body);
   const errors = validateProfile(profile, 'admin');
@@ -221,6 +229,50 @@ async function updateProfile(request: Request, env: Env, id: number, actor: stri
   ]);
   const updated = { ...reg, ...next, updated_at: now } as Registration;
   return json({ ...updated, expired: isExpired(updated) });
+}
+
+// 刪除（誤報名）：軟刪除，從列表隱藏、釋放名額、不通知家長；紀錄保留可復原
+// 已繳費或已有入帳紀錄的不能刪除（要改「取消報名」並處理退款）
+// 繳費帳號在截止日前仍可轉入：之後若有入帳，對帳會標記「需人工確認」
+async function deleteRegistration(request: Request, env: Env, id: number, actor: string): Promise<Response> {
+  const body = (await request.json().catch(() => ({}))) as { reason?: unknown };
+  const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 200) : '';
+  if (!reason) return json({ error: '請填寫刪除原因' }, 400);
+  const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
+  if (!reg) return json({ error: '找不到這筆報名' }, 404);
+  if (reg.deleted_at) return json({ error: '這筆報名已經刪除' }, 400);
+  const payments = await env.DB.prepare('SELECT COUNT(*) AS n FROM payment_events WHERE registration_id = ?').bind(id).first<{ n: number }>();
+  if (PAID_STATUSES.includes(reg.status) || reg.paid_at || (payments?.n ?? 0) > 0) {
+    return json({ error: '這筆報名已有繳費或入帳紀錄，不能刪除；請改用「取消報名」並處理退款' }, 400);
+  }
+  const now = nowIso();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE registrations SET deleted_at = ?, deleted_by = ?, delete_reason = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL').bind(now, actor, reason, now, id),
+    env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, ?, '刪除報名', ?, ?)`).bind(
+      id, actor, `原因：${reason}（${reg.admission}／${reg.status}${reg.va_account ? `，繳費帳號 ${reg.va_account}` : ''}）`, now,
+    ),
+  ]);
+  return json({ ok: true });
+}
+
+// 復原已刪除的報名；正取要確認時段還有名額（刪除期間名額可能已被別人報走）
+async function restoreRegistration(request: Request, env: Env, id: number, actor: string): Promise<Response> {
+  const reg = await env.DB.prepare('SELECT * FROM registrations WHERE id = ?').bind(id).first<Registration>();
+  if (!reg) return json({ error: '找不到這筆報名' }, 404);
+  if (!reg.deleted_at) return json({ error: '這筆報名沒有被刪除' }, 400);
+  const session = reg.legacy_term ? undefined : await findSession(env, request, reg.session_code);
+  if (session && reg.admission === '正取' && !['取消報名', '轉至其他梯次'].includes(reg.status)) {
+    const taken = (await countBySession(env)).get(reg.session_code)?.taken ?? 0;
+    if (taken >= session.capacity) return json({ error: '這個時段目前名額已滿，無法以正取復原；請先調整其他報名或增加名額' }, 409);
+  }
+  const now = nowIso();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE registrations SET deleted_at = NULL, deleted_by = NULL, delete_reason = NULL, updated_at = ? WHERE id = ?').bind(now, id),
+    env.DB.prepare(`INSERT INTO audit_log (registration_id, actor, action, detail, created_at) VALUES (?, ?, '復原報名', ?, ?)`).bind(
+      id, actor, `原刪除原因：${reg.delete_reason ?? ''}`, now,
+    ),
+  ]);
+  return json({ ok: true });
 }
 
 // 模擬入帳（只在測試模式可用）：走跟台新入帳通知完全相同的對帳流程

@@ -31,7 +31,7 @@ export async function countBySession(env: Env): Promise<Map<string, SessionCount
     `SELECT session_code,
        SUM(CASE WHEN ${holdsSeatSql('?1')} THEN 1 ELSE 0 END) AS taken,
        SUM(CASE WHEN admission = '候補' AND status NOT IN ('取消報名', '轉至其他梯次') THEN 1 ELSE 0 END) AS waitlist
-     FROM registrations GROUP BY session_code`,
+     FROM registrations WHERE deleted_at IS NULL GROUP BY session_code`,
   )
     .bind(now)
     .all<SessionCount>();

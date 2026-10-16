@@ -44,6 +44,9 @@ export async function reconcile(
   let review: string | null = null;
   if (!reg) {
     result = 'unmatched';
+  } else if (reg.deleted_at) {
+    result = 'not_payable';
+    review = `已刪除的報名（${reg.delete_reason ?? '誤報名'}）收到 ${input.amount} 元，請確認是否退款或復原報名`;
   } else if (reg.legacy_term) {
     result = 'legacy';
     review = `轉入舊站報名（${reg.legacy_term}）的繳費帳號 ${input.amount} 元，舊站資料沒有應繳金額，請確認後手動更新狀態`;

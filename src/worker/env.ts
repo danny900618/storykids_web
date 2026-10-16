@@ -118,6 +118,9 @@ export interface Registration {
   legacy_id: number | null; // 舊站匯入：舊站編號
   legacy_term: string | null; // 舊站匯入：梯次
   legacy_va: string | null; // 舊站匯入：舊站虛擬帳號
+  deleted_at: string | null; // 軟刪除（誤報名）：隱藏、不佔名額，紀錄保留
+  deleted_by: string | null;
+  delete_reason: string | null;
   admission: '正取' | '候補';
   status: string;
   amount: number;
@@ -153,6 +156,7 @@ export const nowIso = () => new Date().toISOString();
 // SQL 條件：這筆報名是否佔用名額（nowParam 為「現在時間」的參數位置，例如 '?1'）
 // 正取，且不是取消／轉梯次，也不是「等待付費但已過繳費期限」（逾期自動釋出名額）
 export const holdsSeatSql = (nowParam: string) => `(admission = '正取'
+  AND deleted_at IS NULL
   AND status NOT IN ('取消報名', '轉至其他梯次')
   AND NOT (status = '等待付費' AND COALESCE(va_expires_at, '9999') < ${nowParam}))`;
 

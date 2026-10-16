@@ -82,7 +82,7 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
 
   // 同一位學生重複報名同一時段
   const dup = await env.DB.prepare(
-    `SELECT id FROM registrations WHERE session_code = ? AND phone = ? AND student_name = ?
+    `SELECT id FROM registrations WHERE session_code = ? AND phone = ? AND student_name = ? AND deleted_at IS NULL
      AND status NOT IN ('取消報名', '轉至其他梯次') LIMIT 1`,
   )
     .bind(session.code, input.phone, input.student_name)
@@ -130,7 +130,7 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
   let waitlistPosition: number | null = null;
   if (reg.admission === '候補') {
     const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM registrations WHERE session_code = ? AND admission = '候補'
+      `SELECT COUNT(*) AS n FROM registrations WHERE session_code = ? AND admission = '候補' AND deleted_at IS NULL
        AND status NOT IN ('取消報名', '轉至其他梯次') AND id <= ?`,
     )
       .bind(session.code, reg.id)
