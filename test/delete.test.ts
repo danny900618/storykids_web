@@ -60,6 +60,20 @@ describe('刪除報名', () => {
     expect((await post(first.id, 'restore')).status).toBe(409);
   });
 
+  it('時段刪掉後：還有有效報名才警告；報名都已取消或轉梯次就不警告', async () => {
+    const add = (status: string) => db().prepare(
+      `INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name, phone, email,
+        admission, status, amount, created_at, updated_at)
+       VALUES ('s-removed', 'c', '課', '時段', '學生', '家長', '0911222333', 'a@example.com', '正取', ?, 1000, '2026-10-16T00:00:00Z', '2026-10-16T00:00:00Z')`,
+    ).bind(status).run();
+    await add('取消報名');
+    await add('轉至其他梯次');
+    const orphans = async () => ((await (await call(adminRequest('/api/admin/sessions'))).json()) as { orphans: string[] }).orphans;
+    expect(await orphans()).not.toContain('s-removed');
+    await add('等待付費');
+    expect(await orphans()).toContain('s-removed');
+  });
+
   it('只剩已刪除報名的時段，不會被當成「CMS 已刪除的時段」', async () => {
     await db().prepare(
       `INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name, phone, email,

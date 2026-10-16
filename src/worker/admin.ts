@@ -57,8 +57,13 @@ async function listSessions(request: Request, env: Env): Promise<Response> {
   const [sessions, counts] = await Promise.all([loadSessions(env, request), countBySession(env)]);
   // CMS 已刪除、但資料庫還有報名的時段也要列出，避免報名「消失」
   const known = new Set(sessions.map((s) => s.code));
-  // 舊站匯入的時段本來就不在 CMS，另外列出（依梯次分組篩選用）
-  const orphans = [...counts.keys()].filter((code) => !known.has(code) && !code.startsWith(LEGACY_PREFIX));
+  // 只有還有「有效」報名（不是取消、轉梯次、已刪除）的時段才警告：報名都已妥善處理的時段刪掉不會警告
+  // 舊站匯入的時段本來就不在 CMS，不列入（另外依梯次列出）
+  const { results: active } = await env.DB.prepare(
+    `SELECT DISTINCT session_code FROM registrations
+     WHERE deleted_at IS NULL AND status NOT IN ('取消報名', '轉至其他梯次') AND legacy_term IS NULL`,
+  ).all<{ session_code: string }>();
+  const orphans = active.map((r) => r.session_code).filter((code) => !known.has(code) && !code.startsWith(LEGACY_PREFIX));
   const { results: legacyTerms } = await env.DB.prepare(
     `SELECT legacy_term AS term, COUNT(*) AS n FROM registrations WHERE legacy_term IS NOT NULL AND deleted_at IS NULL GROUP BY legacy_term ORDER BY legacy_term DESC`,
   ).all<{ term: string; n: number }>();
