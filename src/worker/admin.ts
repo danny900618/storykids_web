@@ -197,7 +197,8 @@ async function updateProfile(request: Request, env: Env, id: number, actor: stri
   if (reg.deleted_at) return json({ error: '這筆報名已刪除，請先復原再修改' }, 400);
 
   const profile = readProfile(body);
-  const errors = validateProfile(profile, 'admin');
+  // 原本就不合格式的欄位（多為舊站資料）沒有修改就不擋，只檢查這次改的欄位
+  const errors = validateProfile(profile, 'admin', readProfile(reg as unknown as Record<string, unknown>)); // 原資料用同樣規則整理後再比對
   let discount: number | null = null;
   if (body.discount_amount !== undefined && body.discount_amount !== null && body.discount_amount !== '') {
     discount = Number(body.discount_amount);

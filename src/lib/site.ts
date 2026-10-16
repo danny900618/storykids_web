@@ -2,8 +2,10 @@
 import siteData from '../content/site.json';
 
 // 後台清空欄位時可能寫入 null，統一轉成空字串，頁面只需判斷有沒有值
+// 這些欄位清空時改用預設值（按鈕文字、網站名稱不能是空白）
+const SITE_DEFAULTS: Partial<Record<keyof typeof siteData, string>> = { name: '故事講堂', registration_label: '線上報名' };
 export const site = Object.fromEntries(
-  Object.entries(siteData).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : ''])
+  Object.entries(siteData).map(([k, v]) => [k, (typeof v === 'string' ? v.trim() : '') || SITE_DEFAULTS[k as keyof typeof siteData] || ''])
 ) as Record<keyof typeof siteData, string>;
 
 // 主選單：首頁 Header 與手機選單共用

@@ -139,6 +139,22 @@ describe('後台操作', () => {
     expect(audit!.detail).toContain('優待金額');
   });
 
+  it('編輯報名資料：舊站資料原本不合格式的欄位不會擋住存檔，只檢查這次修改的欄位', async () => {
+    await db().prepare(
+      `INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name, phone, email, tel, zip,
+        admission, status, amount, legacy_id, legacy_term, created_at, updated_at)
+       VALUES ('old-z', 'legacy', '舊課程', '2025-07-01', '舊學生', '舊家長', '04-2319', 'old@example.com', '2319', '40',
+        '正取', '已付費', 0, 9, '114夏令營', '2025-07-01T00:00:00Z', '2025-07-01T00:00:00Z')`,
+    ).run();
+    const row = (await db().prepare(`SELECT * FROM registrations WHERE legacy_id = 9`).first<Record<string, unknown>>())!;
+    const save = (changes: object) =>
+      call(adminRequest(`/api/admin/registrations/${row.id}/profile`, { method: 'PATCH', body: JSON.stringify({ ...row, ...changes }) }));
+    // 只改 Email：手機、市話、郵遞區號原本就不合格式，但沒改，不擋
+    expect((await save({ email: 'new@example.com' })).status).toBe(200);
+    // 這次改的郵遞區號格式錯誤：擋下
+    expect((await save({ email: 'new@example.com', zip: 'abc' })).status).toBe(400);
+  });
+
   it('編輯報名資料：格式錯誤會被擋下', async () => {
     const reg = (await register('two-seats')).body;
     const before = (await getRegistration(reg.id))!;

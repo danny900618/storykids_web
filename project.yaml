@@ -781,3 +781,8 @@ changelog:
       注意：改 markdown 設定後本機要清快取 rm -rf .astro node_modules/.astro 再建置。
   - date: 2026-10-16
     note: 「CMS 已刪除的時段」警告只看有效報名（不含取消報名、轉至其他梯次、已刪除、舊站資料）：取消時段時，報名改取消或轉梯次後即可刪時段而不再警告。
+  - date: 2026-10-16
+    note: >
+      空值與按鈕稽核：依 CMS 設定為每個集合產生「選填欄位全部空白」的內容（空字串／null／省略）各建置一次，全部通過；改為常設檢查
+      scripts/check-empty-fields.mjs（npm run check:empty-fields，GitHub Actions 自動化測試執行；已驗證放回早鳥日期 bug 時會失敗）。
+      修正：後台「編輯資料」只檢查這次修改的欄位（舊站 60 筆資料的郵遞區號、市話、手機格式不合會擋住存檔）；網站名稱、報名按鈕文字清空時用預設值。測試 109 項。

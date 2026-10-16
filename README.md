@@ -206,6 +206,8 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 `test/` 底下用 Vitest + `@cloudflare/vitest-plugin`，在 Workers 真實執行環境與本機 D1 中執行，涵蓋：名額與候補、併發不超收、逾期釋出名額、金額防竄改、輸入驗證、重複報名、次數限制、正式網域保護、對帳（正確／重複通知／金額不符／逾期入帳／查無帳號／重複繳費／已取消）、後台登入（密碼、失敗次數、fail closed、本機略過限制、Access、CSRF）、後台操作、CSV 公式注入、內容後台 GitHub 登入。push 到 GitHub 時會自動執行（`.github/workflows/test.yml`）。
 
+`npm run check:empty-fields`：依內容後台設定，為每個集合產生「選填欄位全部留空」的內容（空字串、null、省略）各建置一次，確認人員清空欄位不會讓網站建置失敗（GitHub Actions 也會執行）。
+
 本機後台登入：`.dev.vars` 的 `ADMIN_DEV_BYPASS=true`（只在 localhost／127.0.0.1 生效）。
 
 ## 部署

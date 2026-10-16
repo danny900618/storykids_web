@@ -16,7 +16,8 @@
     "check:worker": "tsc -p src/worker/tsconfig.json",
     "test": "vitest run",
     "relay:check": "node scripts/check-relay.mjs",
-    "credentials:template": "node scripts/credentials-template.mjs"
+    "credentials:template": "node scripts/credentials-template.mjs",
+    "check:empty-fields": "node scripts/check-empty-fields.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.3",
