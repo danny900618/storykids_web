@@ -107,7 +107,10 @@ const courses = defineCollection({
           capacity: z.number().int().min(0),
           price: z.number().int().min(0),
           // 早鳥：截止日（含當天，台灣時間 23:59 前）報名，費用折扣「早鳥折扣」元；兩個都有填才生效
-          early_bird_deadline: z.coerce.date().nullish().transform((v) => v ?? undefined),
+          // 後台清空欄位時會寫入空字串或 null，一律視為未填
+          early_bird_deadline: z
+            .preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.date().optional())
+            .transform((v) => (v && !Number.isNaN(v.valueOf()) ? v : undefined)),
           early_bird_discount: z
             .preprocess((v) => (v === '' ? undefined : v), z.number().int().min(0).nullish())
             .transform((v) => v ?? undefined),
@@ -172,7 +175,9 @@ const gallery = defineCollection({
     // 列表上顯示的簡短描述；未填寫時自動擷取內文開頭
     summary: optionalText,
     // 舊站相簿沒有日期，所以日期為選填；有日期的相簿排在前面（新到舊）
-    date: z.coerce.date().nullish().transform((v) => v ?? undefined),
+    date: z
+      .preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.date().optional())
+      .transform((v) => (v && !Number.isNaN(v.valueOf()) ? v : undefined)),
     // 沒有日期的相簿依此排序（數字越小越前面）
     order: orderNumber,
     cover: optionalText,

@@ -1,0 +1,29 @@
+# 內容檢查：內容後台存檔（src/content）或修改後台欄位設定後，試著建置網站
+# 內容格式有問題時建置會失敗，Cloudflare 也會部署失敗、網站停在舊版本；這裡失敗時 GitHub 會寄信通知 repo 擁有者
+name: 內容檢查
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/content/**'
+      - 'public/cms/**'
+      - 'src/content.config.ts'
+
+# 連續存檔時只檢查最新版本
+concurrency:
+  group: content-check
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 建置網站（檢查內容格式）
+        run: npm run build
