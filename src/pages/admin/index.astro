@@ -206,7 +206,7 @@ import '../../styles/global.css';
         const { sessions, orphans, legacy_terms } = await api<{ sessions: SessionInfo[]; orphans: string[]; legacy_terms: { term: string; n: number }[] }>('/sessions');
         const sel = filters.elements.namedItem('session') as HTMLSelectElement;
         const current = sel.value;
-        sel.innerHTML = '<option value="">全部時段</option>' + [...sessions.map((s) => [s.code, `${s.course_title}｜${s.name}（正取 ${s.taken}/${s.capacity}${s.waitlist ? `・候補 ${s.waitlist}` : ''}${s.open ? '' : '・暫停報名'}）`]), ...orphans.map((o) => [o, `${o}（CMS 已刪除）`])]
+        sel.innerHTML = '<option value="">全部時段</option>' + [...sessions.map((s) => [s.code, `${s.course_title}｜${s.name}（${s.taken >= s.capacity ? '已額滿' : `剩 ${s.capacity - s.taken} 位`}・正取 ${s.taken}/${s.capacity}${s.waitlist ? `・候補 ${s.waitlist}` : ''}${s.open ? '' : '・暫停報名'}）`]), ...orphans.map((o) => [o, `${o}（CMS 已刪除）`])]
           .map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
         sel.value = current;
         const termSel = filters.elements.namedItem('term') as HTMLSelectElement;
