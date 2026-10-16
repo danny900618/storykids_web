@@ -64,3 +64,10 @@ export function youtubeId(input: string | undefined): string | undefined {
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
+
+// 早鳥期限：截止日（內容後台的日期，UTC 午夜）當天台灣時間 23:59:59.999；折扣需大於 0 且小於費用才生效
+export function earlyBirdUntil(s: { price: number; early_bird_deadline?: Date; early_bird_discount?: number }): string | undefined {
+  if (!s.early_bird_deadline || !s.early_bird_discount || s.early_bird_discount >= s.price) return undefined;
+  const d = s.early_bird_deadline;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999) - 8 * 3600_000).toISOString();
+}

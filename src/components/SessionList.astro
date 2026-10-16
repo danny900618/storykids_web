@@ -2,6 +2,7 @@
 // 課程頁的「上課時段」：名稱、時間、費用與報名按鈕（不顯示名額與剩餘名額）
 // 額滿時按鈕改為「額滿請候補」（即時向後端查詢），仍可報名，會自動列為候補（不產生繳費帳號）
 import type { CollectionEntry } from 'astro:content';
+import { earlyBirdUntil } from '../lib/site';
 
 interface Props {
   sessions: CollectionEntry<'courses'>['data']['sessions'];
@@ -9,6 +10,16 @@ interface Props {
 }
 const { sessions, defaultLocation } = Astro.props;
 const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
+// 早鳥期限（建置時已過期的不顯示；建置後才過期的，由下方程式在瀏覽器切回原價）
+const now = new Date().toISOString();
+const earlyBird = (s: (typeof sessions)[number]) => {
+  const until = earlyBirdUntil(s);
+  return until && until > now ? { until, price: s.price - s.early_bird_discount!, date: until.slice(0, 10) } : undefined;
+};
+const twDate = (iso: string) => {
+  const d = new Date(new Date(iso).getTime() + 8 * 3600_000);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+};
 ---
 
 <section id="sessions" class="scroll-mt-28">
@@ -33,7 +44,19 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
               </p>
             )}
             <p class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span class="font-bold text-brand-700">{money(s.price)}</span>
+              {earlyBird(s) ? (
+                <>
+                  <span class="font-bold text-brand-700" data-regular-price hidden>{money(s.price)}</span>
+                  <span class="flex flex-wrap items-baseline gap-x-2" data-early-bird={earlyBird(s)!.until}>
+                    <span class="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-bold text-white">早鳥</span>
+                    <span class="text-base font-bold text-brand-700">{money(earlyBird(s)!.price)}</span>
+                    <span class="text-ink-500 line-through">{money(s.price)}</span>
+                    <span class="text-brand-700">{twDate(earlyBird(s)!.until)} 前報名</span>
+                  </span>
+                </>
+              ) : (
+                <span class="font-bold text-brand-700">{money(s.price)}</span>
+              )}
               <span class="font-bold text-brand-600" data-full />
             </p>
           </div>
@@ -70,4 +93,11 @@ const money = (n: number) => `NT$ ${n.toLocaleString('en-US')}`;
     }
   }
   loadAvailability();
+
+  // 早鳥過了截止日（網站建置後才過期）：切回原價
+  document.querySelectorAll<HTMLElement>('[data-early-bird]').forEach((el) => {
+    if (new Date().toISOString() <= el.dataset.earlyBird!) return;
+    el.hidden = true;
+    el.parentElement?.querySelector<HTMLElement>('[data-regular-price]')?.removeAttribute('hidden');
+  });
 </script>

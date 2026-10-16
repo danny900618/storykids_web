@@ -3,6 +3,13 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { getCourses } from '../../lib/content';
+import { earlyBirdUntil } from '../../lib/site';
+
+// 早鳥：截止日當天台灣時間 23:59:59 前有效
+function earlyBird(s: { price: number; early_bird_deadline?: Date; early_bird_discount?: number }) {
+  const until = earlyBirdUntil(s);
+  return until ? { early_bird_until: until, early_bird_discount: s.early_bird_discount } : {};
+}
 
 export const GET: APIRoute = async () => {
   const [courses, policies] = await Promise.all([getCourses(), getCollection('policies')]);
@@ -16,6 +23,8 @@ export const GET: APIRoute = async () => {
       time: s.time ?? '',
       capacity: s.capacity,
       price: s.price,
+      // 早鳥：截止日當天台灣時間 23:59:59 前有效（折扣需大於 0 且小於費用才生效）
+      ...earlyBird(s),
       open: s.open,
       course_id: c.id,
       course_title: c.data.title,

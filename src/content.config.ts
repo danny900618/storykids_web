@@ -106,6 +106,11 @@ const courses = defineCollection({
           location: optionalText, // 上課地點（未填寫則用課程的上課地點）
           capacity: z.number().int().min(0),
           price: z.number().int().min(0),
+          // 早鳥：截止日（含當天，台灣時間 23:59 前）報名，費用折扣「早鳥折扣」元；兩個都有填才生效
+          early_bird_deadline: z.coerce.date().nullish().transform((v) => v ?? undefined),
+          early_bird_discount: z
+            .preprocess((v) => (v === '' ? undefined : v), z.number().int().min(0).nullish())
+            .transform((v) => v ?? undefined),
           open: bool(true),
         }),
       )

@@ -76,6 +76,9 @@ export interface Session {
   time: string;
   capacity: number;
   price: number;
+  // 早鳥：在 early_bird_until（ISO，含截止日當天）以前報名，費用減 early_bird_discount 元
+  early_bird_until?: string;
+  early_bird_discount?: number;
   open: boolean;
   course_id: string;
   course_title: string;
@@ -110,6 +113,7 @@ export interface Registration {
   address: string | null;
   diet: string | null; // 飲食習慣
   discount_amount: number | null; // 優待金額（只做顯示，不影響 amount）
+  early_bird_discount: number | null; // 早鳥折扣（已從 amount 扣除，繳費帳號依折扣後金額產生）
   agreed_policies: string | null;
   legacy_id: number | null; // 舊站匯入：舊站編號
   legacy_term: string | null; // 舊站匯入：梯次
@@ -176,4 +180,13 @@ export function json(data: unknown, status = 200, headers: Record<string, string
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers },
   });
+}
+
+// 報名當下的應繳金額：早鳥期間（含截止日當天）費用減早鳥折扣；以伺服器時間為準
+export function priceFor(session: Session, now = new Date()): { amount: number; earlyBirdDiscount: number | null } {
+  const discount = session.early_bird_discount ?? 0;
+  if (session.early_bird_until && discount > 0 && discount < session.price && now.toISOString() <= session.early_bird_until) {
+    return { amount: session.price - discount, earlyBirdDiscount: discount };
+  }
+  return { amount: session.price, earlyBirdDiscount: null };
 }

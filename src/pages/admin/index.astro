@@ -169,7 +169,7 @@ import '../../styles/global.css';
       interface Reg {
         id: number; session_code: string; course_title: string; session_name: string; student_name: string; parent_name: string;
         school: string | null; grade: string | null; phone: string; email: string; note: string | null; admission: string; status: string;
-        gender: string | null; tel: string | null; zip: string | null; address: string | null; diet: string | null; discount_amount: number | null;
+        gender: string | null; tel: string | null; zip: string | null; address: string | null; diet: string | null; discount_amount: number | null; early_bird_discount: number | null;
         agreed_policies: string | null; legacy_id: number | null; legacy_term: string | null; legacy_va: string | null;
         amount: number; va_account: string | null; va_expires_at: string | null; paid_amount: number | null; paid_at: string | null;
         review_note: string | null; created_at: string; expired: boolean;
@@ -226,7 +226,8 @@ import '../../styles/global.css';
           : r.va_account
           ? `<div class="font-mono">${esc(r.va_account)}</div><div class="text-xs ${r.expired ? 'font-bold text-red-600' : 'text-ink-500'}">${r.expired ? '已逾期 ' : '期限 '}${tw(r.va_expires_at)}</div>`
           : '<div class="text-xs text-ink-500">候補不產生帳號</div>';
-        const discount = r.discount_amount ? `<div class="text-xs font-bold text-yellow-700">優待 ${money(r.discount_amount)}</div>` : '';
+        const discount = (r.early_bird_discount ? `<div class="text-xs font-bold text-brand-700">早鳥價（已折 ${money(r.early_bird_discount)}）</div>` : '')
+          + (r.discount_amount ? `<div class="text-xs font-bold text-yellow-700">優待 ${money(r.discount_amount)}</div>` : '');
         const mockBtn = config.payment_mode === 'mock' && r.va_account && !paid
           ? `<button data-mock="${r.id}" class="rounded-lg bg-green-600 px-2 py-1 text-xs font-bold text-white hover:bg-green-700">模擬入帳</button>` : '';
         const review = r.review_note
@@ -442,7 +443,7 @@ import '../../styles/global.css';
           ['時段', r.session_name],
           ['正取／候補', r.admission],
           ['狀態', r.expired ? '等待付費（已逾期）' : r.status],
-          ['應繳金額', r.legacy_term ? '（舊站資料無金額）' : money(r.amount)],
+          ['應繳金額', r.legacy_term ? '（舊站資料無金額）' : `${money(r.amount)}${r.early_bird_discount ? `（早鳥價，已折 ${money(r.early_bird_discount)}）` : ''}`],
           ['繳費帳號', r.va_account ?? (r.legacy_va ? `${r.legacy_va}（舊站）` : '')],
           ['同意辦法', r.agreed_policies ?? ''],
         ];

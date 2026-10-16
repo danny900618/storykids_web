@@ -159,7 +159,7 @@ function registrationRows(r: Registration, session?: Session): EmailContent['row
     ['課程主題', r.course_title],
     ['報名時段', r.session_name],
     ['學生姓名', r.student_name],
-    ['預約費用', money(r.amount)],
+    ['預約費用', r.early_bird_discount ? `${money(r.amount)}（早鳥優惠，已折 ${money(r.early_bird_discount)}）` : money(r.amount)],
     ['費用說明', session?.fee_note],
     ['上課週期', session?.cycle],
     ['上課期間', [session?.period, session?.time].filter(Boolean).join('　')],

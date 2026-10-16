@@ -12,6 +12,10 @@ export const SESSIONS: Session[] = [
   { code: 'two-seats', name: '測試 A', time: '週三', capacity: 2, price: 11000, open: true, course_id: 'c1', course_title: '測試課程', category: '115夏令營', makeup_rule: 'makeup-camp', makeup_rule_title: '寒暑假營隊', refund_rule: 'refund-camp', refund_rule_title: '寒暑假營隊', cycle: '五天主題課程30小時', period: '2026-08-24~2026-08-28', fee_note: '含教材與午餐', location: '故事講堂' },
   { code: 'one-seat', name: '測試 B', time: '週六', capacity: 1, price: 6000, open: true, course_id: 'c1', course_title: '測試課程' },
   { code: 'closed', name: '測試 C', time: '週日', capacity: 5, price: 5000, open: false, course_id: 'c1', course_title: '測試課程' },
+  // 早鳥：期限在很久以後（有效）、已過期、名額 1 人（測候補遞補）
+  { code: 'early-bird', name: '早鳥 A', time: '週一', capacity: 5, price: 11000, early_bird_until: '2099-12-31T15:59:59.999Z', early_bird_discount: 1000, open: true, course_id: 'c1', course_title: '測試課程' },
+  { code: 'early-bird-expired', name: '早鳥 B', time: '週二', capacity: 5, price: 11000, early_bird_until: '2000-01-01T15:59:59.999Z', early_bird_discount: 1000, open: true, course_id: 'c1', course_title: '測試課程' },
+  { code: 'early-bird-one', name: '早鳥 C', time: '週四', capacity: 1, price: 8000, early_bird_until: '2099-12-31T15:59:59.999Z', early_bird_discount: 500, open: true, course_id: 'c1', course_title: '測試課程' },
 ];
 
 // 取代靜態檔案：只提供 /data/sessions.json

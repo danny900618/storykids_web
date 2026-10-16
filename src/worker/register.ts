@@ -1,6 +1,6 @@
 // 前台 API：額滿查詢、線上報名
 import type { Env, Registration, Session } from './env';
-import { clientIp, holdsSeatSql, json, nowIso, paymentDeadline } from './env';
+import { clientIp, holdsSeatSql, json, nowIso, paymentDeadline, priceFor } from './env';
 import { countBySession, findSession, loadSessions } from './sessions';
 import { generateVirtualAccount } from './payment';
 import { notifyRegistered } from './notify';
@@ -92,15 +92,17 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
   // 一個 SQL 指令完成「判斷名額 + 寫入」，D1 依序執行，同時多人報名也不會超收
   const now = nowIso();
   const deadline = paymentDeadline();
+  // 應繳金額以伺服器時間判斷是否在早鳥期間（家長送來的金額一律不採用）
+  const price = priceFor(session, new Date(now));
   const reg = await env.DB.prepare(
     `WITH decision AS (
        SELECT CASE WHEN (SELECT COUNT(*) FROM registrations WHERE session_code = ?1 AND ${holdsSeatSql('?12')}) < ?13
               THEN '正取' ELSE '候補' END AS adm
      )
      INSERT INTO registrations (session_code, course_id, course_title, session_name, student_name, parent_name,
-       school, grade, phone, email, note, gender, tel, zip, address, diet, agreed_policies,
+       school, grade, phone, email, note, gender, tel, zip, address, diet, agreed_policies, early_bird_discount,
        admission, status, amount, va_expires_at, created_at, updated_at)
-     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?16, ?17, ?18, ?19, ?20, ?21, adm,
+     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?16, ?17, ?18, ?19, ?20, ?21, ?22, adm,
        CASE adm WHEN '正取' THEN '等待付費' ELSE '待處理' END,
        ?14,
        CASE adm WHEN '正取' THEN ?15 ELSE NULL END,
@@ -112,8 +114,8 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
       session.code, session.course_id, session.course_title, session.name,
       input.student_name, input.parent_name, input.school || null, input.grade || null,
       input.phone, input.email, input.note || null,
-      now, session.capacity, session.price, deadline,
-      input.gender, input.tel || null, input.zip, input.address, input.diet || null, agreedPolicies(session),
+      now, session.capacity, price.amount, deadline,
+      input.gender, input.tel || null, input.zip, input.address, input.diet || null, agreedPolicies(session), price.earlyBirdDiscount,
     )
     .first<Registration>();
   if (!reg) return json({ error: '報名失敗，請稍後再試' }, 500);
@@ -148,6 +150,7 @@ export async function handleRegister(request: Request, env: Env, ctx: ExecutionC
     session_time: session.time,
     student_name: reg.student_name,
     amount: reg.amount,
+    early_bird_discount: reg.early_bird_discount,
     va_account: reg.va_account,
     va_expires_at: reg.va_expires_at,
     test_mode: env.PAYMENT_MODE !== 'live',

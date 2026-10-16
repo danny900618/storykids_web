@@ -189,11 +189,12 @@ const steps = ['課程預約', '資料填寫', '完成報名'];
 <script>
   interface Session {
     code: string; name: string; period: string; time: string; location: string; price: number; open: boolean;
+    early_bird_until?: string; early_bird_discount?: number;
     course_id: string; course_title: string; category: string; fee_note: string; makeup_rule: string; refund_rule: string;
   }
   interface Result {
     id: number; admission: '正取' | '候補'; waitlist_position: number | null; course_title: string; session_name: string;
-    session_time: string; student_name: string; amount: number; va_account: string | null; va_expires_at: string | null; test_mode: boolean;
+    session_time: string; student_name: string; amount: number; early_bird_discount: number | null; va_account: string | null; va_expires_at: string | null; test_mode: boolean;
   }
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -263,7 +264,11 @@ const steps = ['課程預約', '資料填寫', '完成報名'];
     $('s-category').textContent = s.category;
     $('s-title').textContent = `${s.course_title}｜${s.name}`;
     $('s-time').textContent = [s.period, s.time, s.location && `上課地點：${s.location}`].filter(Boolean).join('　');
-    $('s-price').textContent = `預約費用 ${money(s.price)}`;
+    // 早鳥期間顯示早鳥價（實際應繳金額以送出時伺服器判斷為準）
+    const earlyBird = s.early_bird_until && s.early_bird_discount && new Date().toISOString() <= s.early_bird_until;
+    $('s-price').textContent = earlyBird
+      ? `早鳥價 ${money(s.price - s.early_bird_discount!)}（原價 ${money(s.price)}，${twTime(s.early_bird_until!).slice(0, 10)} 前報名）`
+      : `預約費用 ${money(s.price)}`;
     showPolicy('makeup-body', s.makeup_rule, '請洽講堂詢問補課辦法。');
     showPolicy('refund-body', s.refund_rule, s.fee_note || '請洽講堂詢問退費辦法。');
     $('flow').classList.remove('hidden');
@@ -294,7 +299,7 @@ const steps = ['課程預約', '資料填寫', '完成報名'];
            <dl class="mt-6 grid gap-4 sm:grid-cols-2">
              <div><dt class="text-sm text-ink-500">報名編號</dt><dd class="font-bold">${r.id}</dd></div>
              <div><dt class="text-sm text-ink-500">課程時段</dt><dd class="font-bold">${esc(r.course_title)}｜${esc(r.session_name)}</dd></div>
-             <div><dt class="text-sm text-ink-500">學費</dt><dd class="text-xl font-bold text-brand-700">${money(r.amount)}</dd></div>
+             <div><dt class="text-sm text-ink-500">學費</dt><dd class="text-xl font-bold text-brand-700">${money(r.amount)}${r.early_bird_discount ? `<span class="ml-2 text-sm font-normal text-ink-500">（早鳥優惠，已折 ${money(r.early_bird_discount)}）</span>` : ''}</dd></div>
              <div><dt class="text-sm text-ink-500">繳費期限</dt><dd class="font-bold">${r.va_expires_at ? twTime(r.va_expires_at) : ''}</dd></div>
            </dl>
            <div class="mt-6 rounded-2xl bg-brand-50 p-5 ring-1 ring-brand-200">

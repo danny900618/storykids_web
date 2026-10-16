@@ -257,7 +257,7 @@ async function exportCsv(env: Env, params: URLSearchParams, actor: string): Prom
   const filters = [...params.entries()].map(([k, v]) => `${k}=${v}`).join('、') || '全部';
   await audit(env, null, actor, '匯出名單', `條件：${filters}；共 ${rows.length} 筆`);
   const header = ['報名編號', '報名時間', '來源', '課程', '時段', '時段代號', '正取/候補', '狀態', '學生姓名', '性別', '家長姓名', '學校', '年級',
-    '行動電話', '聯絡電話', 'Email', '郵遞區號', '地址', '飲食習慣', '備註', '應繳金額', '優待金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '同意辦法', '需人工確認'];
+    '行動電話', '聯絡電話', 'Email', '郵遞區號', '地址', '飲食習慣', '備註', '應繳金額', '早鳥折扣', '優待金額', '繳費帳號', '繳費期限', '入帳金額', '入帳時間', '同意辦法', '需人工確認'];
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
     // 避免 Excel 公式注入：開頭為 = + - @ 的欄位前加單引號
@@ -270,7 +270,7 @@ async function exportCsv(env: Env, params: URLSearchParams, actor: string): Prom
       r.course_title, r.session_name, r.legacy_term ? '' : r.session_code, r.admission,
       r.expired ? '等待付費（已逾期）' : r.status,
       r.student_name, r.gender, r.parent_name, r.school, r.grade, `\t${r.phone}`, r.tel ? `\t${r.tel}` : '', r.email, r.zip, r.address, r.diet, r.note,
-      r.legacy_term ? '' : r.amount, r.discount_amount,
+      r.legacy_term ? '' : r.amount, r.early_bird_discount, r.discount_amount,
       r.va_account || r.legacy_va ? `\t${r.va_account ?? r.legacy_va}` : '', formatTw(r.va_expires_at), r.paid_amount, formatTw(r.paid_at), r.agreed_policies, r.review_note,
     ].map(esc).join(','),
   );

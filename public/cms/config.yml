@@ -138,7 +138,7 @@ collections:
         widget: list
         required: false
         collapsed: true
-        summary: "{{fields.name}}｜{{fields.period}}｜名額 {{fields.capacity}}"
+        summary: "{{fields.name}}｜{{fields.period}}｜名額 {{fields.capacity}}｜{{fields.price}} 元"
         fields:
           # 時段代號：報名資料對應時段的依據。由系統自動產生、不可修改（新增時段時自動填入）
           - name: code
@@ -153,6 +153,8 @@ collections:
           - { name: location, label: 上課地點（未填寫則用課程的上課地點）, widget: string, required: false }
           - { name: capacity, label: 名額, widget: number, value_type: int, min: 0, default: 12 }
           - { name: price, label: 費用（新台幣，只填數字；報名時以此金額產生繳費帳號）, widget: number, value_type: int, min: 0 }
+          - { name: early_bird_deadline, label: 早鳥截止日（選填，含當天；這天以前報名享早鳥折扣）, widget: datetime, type: date, format: YYYY-MM-DD, required: false }
+          - { name: early_bird_discount, label: 早鳥折扣（選填，新台幣，只填數字，例如 500 表示早鳥價便宜 500 元）, widget: number, value_type: int, min: 0, required: false, hint: 早鳥截止日與早鳥折扣都要填才會生效；繳費帳號會依早鳥價產生 }
           - { name: open, label: 開放報名（取消勾選即暫停報名）, widget: boolean, default: true, required: false }
       # ---- 其他 ----
       - { name: featured, label: 顯示在首頁, widget: boolean, default: false, required: false }
