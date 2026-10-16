@@ -774,3 +774,8 @@ changelog:
       報名管理後台新增「刪除」（誤報名，軟刪除，migration 0008：deleted_at／deleted_by／delete_reason）：需填原因；已繳費或已有入帳紀錄不能刪（改用取消報名並退款）；
       刪除後列表隱藏、釋放名額、不通知家長、可在「狀態：已刪除」復原（正取復原時檢查名額）；繳費帳號期限內仍可能轉入，對帳會標記需人工確認；
       已刪除的不算名額、候補人數、重複報名與「CMS 已刪除時段」警告。測試 107 項。
+  - date: 2026-10-16
+    note: >
+      內文單一換行改為顯示換行（與內容後台預覽一致；人員反映草莓老師簡介換行不見）：Markdown 改用 unified（@astrojs/markdown-remark）＋remark-breaks，
+      smartypants 設為 dashes oldschool、quotes false（避免中文旁引號轉錯方向）；全站逐頁比對建置結果，除老師簡介換行外無差異（講堂緣起引號改為全形）。
+      注意：改 markdown 設定後本機要清快取 rm -rf .astro node_modules/.astro 再建置。

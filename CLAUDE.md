@@ -10,6 +10,7 @@
 - 不使用 Tailwind CDN、不在前端用 JS 渲染內容；內容一律於建置時產生 HTML。例外：額滿狀態、報名表、報名管理後台需要即時資料，透過 `/api/*` 取得。前台不顯示名額與剩餘名額。
 - 報名欄位檢查集中在 `src/worker/profile.ts`（線上報名與後台編輯共用）。
 - 程式註解與 UI 文字使用繁體中文。
+- Markdown 用 unified＋remark-breaks（`astro.config.mjs`）：內文單一換行即換行；修改 markdown 設定後本機要清快取（`rm -rf .astro node_modules/.astro`）再建置，否則內容不會重新渲染。
 - 圖片放在 `public/images/`（後台上傳也存這裡，內容欄位存 `/images/...` 路徑）；PDF 放 `public/files/`。`public/images/old/` 是從舊站搬來的圖片。
 - 後台清空欄位時可能寫入 `null` 或空字串，`content.config.ts` 的選填欄位必須接受 nullish。
 - 部署在 Cloudflare Workers（測試與正式兩個 Worker），設定在 `wrangler.jsonc`；只有 `/api/*`、`/admin` 會經過 `src/worker/`，其餘為靜態檔（含 `/cms`）。內容後台的 GitHub 登入在 `src/worker/cms-auth.ts`。舊站網址轉址寫在 `public/_redirects`（不支援比對查詢參數）。
