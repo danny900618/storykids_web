@@ -43,6 +43,8 @@ sessions:
     location: 台中市向上路一段698號
     capacity: 12
     price: 11000
+    early_bird_deadline: ''
+    early_bird_discount: null
     open: true
   - code: test-sat
     name: 測試時段 B（週六班）
@@ -51,10 +53,12 @@ sessions:
     location: ''
     capacity: 1
     price: 11000
+    early_bird_deadline: ''
+    early_bird_discount: null
     open: true
 featured: true
 published: true
-order: 10
+order: 1
 registration_url: ''
 ---
 
